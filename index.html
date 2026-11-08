@@ -75,7 +75,7 @@ summary { font-family: var(--display); font-weight: 600; font-size: 17px; letter
 details > .body { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
 label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 input[type=range] { flex: 1; min-width: 0; accent-color: var(--red); }
-input[type=number] { width: 70px; font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+input[type=number], select { width: 90px; font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 #log { font-family: var(--mono); font-size: 11px; color: var(--muted); max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
 .stop { width: 100%; font-size: 22px; padding: 16px; background: var(--bg); border: 2px solid var(--red); color: var(--red); }
@@ -124,9 +124,14 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   <details>
     <summary>Experiments</summary>
     <div class="body">
-      <p style="margin:0;font-size:14px;color:var(--muted)">Untested on this car. Sounds use the command Sphero's other toys use; the car may ignore it.</p>
-      <div class="row"><label class="opt">Sound # <input type="number" id="soundIdx" min="0" max="255" value="0"></label>
-        <button id="playSound" disabled>Play</button><button id="nextSound" disabled>Next</button></div>
+      <p style="margin:0;font-size:14px;color:var(--muted)">Sounds have numbers from 0 to 65535, with gaps. Your old "sound 1" is 256 and "sound 10" is 2560. Scan plays one number after another so you can listen for the ones that work, then tap Save.</p>
+      <div class="row"><label class="opt">Sound # <input type="number" id="soundIdx" min="0" max="65535" value="256" inputmode="numeric"></label>
+        <button id="playSound" disabled>Play</button></div>
+      <div class="row"><button id="prevSound" disabled>&lsaquo; Prev</button><button id="nextSound" disabled>Next &rsaquo;</button><button id="saveSound" disabled>Save</button><button id="stopSound" disabled>Hush</button></div>
+      <div class="row"><label class="opt">Scan every <select id="scanGap"><option value="800">0.8 s</option><option value="1500" selected>1.5 s</option><option value="3000">3 s</option></select></label>
+        <button id="scanBtn" disabled>Scan</button></div>
+      <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
+      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div></div>
       <div class="row"><button id="sleepBtn" disabled>Put car to sleep</button></div>
     </div>
   </details>
@@ -172,7 +177,10 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     sleep: () => packet({ flags: F_RESP | F_KEEPALIVE, target: 0x11, device: 0x13, cmd: 0x01 }),
     // Same flags the official app uses for driving: keep-alive only, no reply requested.
     driveRc: (steer, speed) => packet({ flags: F_KEEPALIVE, device: 0x16, cmd: 0x02, payload: [...f32(steer), ...f32(speed)] }),
-    sound: (i) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x07, payload: [i & 0xff, 0, 0] }),
+    // Sound IDs are 16-bit big-endian, then a playback mode byte (0 = play now).
+    sound: (i) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x07, payload: [(i >> 8) & 0xff, i & 0xff, 0] }),
+    stopSound: () => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x0a }),
+    volume: (v) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x08, payload: [v & 0xff] }),
   };
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
@@ -186,6 +194,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   if (!navigator.bluetooth) { $('noBt').hidden = false; $('connect').disabled = true; }
 
   // ---- Bluetooth ----
+  const CTRL_IDS = ['disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -235,7 +244,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       connected = true;
       setStatus('on', `Connected to ${device.name || 'car'}`);
       $('connect').disabled = true;
-      for (const id of ['disconnect', 'playSound', 'nextSound', 'sleepBtn']) $(id).disabled = false;
+      for (const id of CTRL_IDS) $(id).disabled = false;
       driveTimer = setInterval(tick, 80);
     } catch (e) {
       log('Error: ' + (e && e.message ? e.message : e));
@@ -249,7 +258,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   function cleanup() {
     clearInterval(driveTimer); driveTimer = null; connected = false; chApi = null; busy = false;
     $('connect').disabled = !navigator.bluetooth;
-    for (const id of ['disconnect', 'playSound', 'nextSound', 'sleepBtn']) $(id).disabled = true;
+    for (const id of CTRL_IDS) $(id).disabled = true;
+    stopScan();
   }
   function onDisconnected() { log('Car disconnected'); setStatus('off', 'Disconnected'); cleanup(); }
 
@@ -347,8 +357,36 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('connect').addEventListener('click', connect);
   $('disconnect').addEventListener('click', () => { stopAll(); setTimeout(() => device && device.gatt.connected && device.gatt.disconnect(), 150); });
   $('stop').addEventListener('click', stopAll);
-  $('playSound').addEventListener('click', () => send(cmds.sound(+$('soundIdx').value || 0), `Sound ${$('soundIdx').value}`));
-  $('nextSound').addEventListener('click', () => { $('soundIdx').value = ((+$('soundIdx').value || 0) + 1) % 256; $('playSound').click(); });
+  // ---- Sounds ----
+  const soundNum = () => Math.max(0, Math.min(65535, parseInt($('soundIdx').value, 10) || 0));
+  function playNum(n) { $('soundIdx').value = n; return send(cmds.sound(n), `Sound ${n}`); }
+  $('playSound').addEventListener('click', () => playNum(soundNum()));
+  $('nextSound').addEventListener('click', () => playNum((soundNum() + 1) % 65536));
+  $('prevSound').addEventListener('click', () => playNum((soundNum() + 65535) % 65536));
+  $('stopSound').addEventListener('click', () => { stopScan(); send(cmds.stopSound(), 'Hush'); });
+  let scanTimer = null;
+  function stopScan() { clearInterval(scanTimer); scanTimer = null; $('scanBtn').textContent = 'Scan'; }
+  $('scanBtn').addEventListener('click', () => {
+    if (scanTimer) return stopScan();
+    $('scanBtn').textContent = 'Pause scan';
+    playNum(soundNum());
+    scanTimer = setInterval(() => { if (!connected) return stopScan(); playNum((soundNum() + 1) % 65536); }, +$('scanGap').value);
+  });
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('mcq-sounds') || '[256,2560]'); } catch (e) { saved = [256, 2560]; }
+  function renderSaved() {
+    const box = $('saved'); box.textContent = '';
+    for (const n of saved) {
+      const b = document.createElement('button'); b.textContent = n; b.style.fontSize = '15px'; b.style.padding = '8px 12px';
+      b.addEventListener('click', () => { if (connected) playNum(n); else $('soundIdx').value = n; });
+      box.appendChild(b);
+    }
+    try { localStorage.setItem('mcq-sounds', JSON.stringify(saved)); } catch (e) {}
+  }
+  $('saveSound').addEventListener('click', () => { const n = soundNum(); if (!saved.includes(n)) { saved.push(n); saved.sort((x, y) => x - y); renderSaved(); } });
+  renderSaved();
+  $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
+  $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
   $('sleepBtn').addEventListener('click', () => send(cmds.sleep(), 'Sleep'));
   for (const id of ['maxSpeed', 'maxSteer']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
