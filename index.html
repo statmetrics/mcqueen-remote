@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>McQueen Remote</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,6 +82,9 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 @media (max-width: 420px) { .pads { grid-template-columns: 1fr 96px; } #throttle .knob { width: 64px; margin-left: -32px; } }
 @media (prefers-reduced-motion: reduce) { .knob { transition: none !important; } }
 </style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} [hidden]{display:none!important}</style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
@@ -354,3 +362,6 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   log(navigator.bluetooth ? 'Ready. Turn the car on, then tap Connect car.' : 'Bluetooth not available in this browser.');
 })();
 </script>
+
+</body>
+</html>
