@@ -54,7 +54,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .note { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 8px;
   padding: 10px 12px; font-size: 14px; line-height: 1.45; }
 .note[hidden] { display: none; }
-.pads { display: grid; grid-template-columns: 1fr 120px; gap: 12px; }
+.pads { display: grid; grid-template-columns: 1fr 120px; grid-template-areas: "steer gas" "mid mid"; gap: 12px; }
+#steer { grid-area: steer; } #throttle { grid-area: gas; }
+.mid { grid-area: mid; display: flex; flex-direction: column; gap: 12px; }
 .pad { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; touch-action: none;
   overflow: hidden; }
 .pad .label { position: absolute; top: 8px; left: 12px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
@@ -79,7 +81,24 @@ input[type=number], select { width: 90px; font: inherit; background: var(--bg); 
 input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 #log { font-family: var(--mono); font-size: 11px; color: var(--muted); max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
 .stop { width: 100%; font-size: 22px; padding: 16px; background: var(--bg); border: 2px solid var(--red); color: var(--red); }
-@media (max-width: 420px) { .pads { grid-template-columns: 1fr 96px; } #throttle .knob { width: 64px; margin-left: -32px; } }
+@media (max-width: 420px) and (orientation: portrait) { .pads { grid-template-columns: 1fr 96px; } #throttle .knob { width: 64px; margin-left: -32px; } }
+/* Landscape: game-controller layout. Steer under the left thumb, gas under the right, Stop between. */
+@media (orientation: landscape) and (max-height: 560px) {
+  body { padding-block: 6px 12px; }
+  .wrap { max-width: none; gap: 10px; }
+  h1 { font-size: 22px; }
+  .pads { grid-template-columns: minmax(0, 1.25fr) minmax(130px, 0.6fr) minmax(120px, 0.8fr); grid-template-areas: "steer mid gas"; }
+  #steer, #throttle { height: calc(100vh - 120px); min-height: 200px; }
+  @supports (height: 100dvh) { #steer, #throttle { height: calc(100dvh - 120px); } }
+  .mid { justify-content: center; }
+  .mid .readout { flex-direction: column; gap: 4px; align-items: center; }
+  .mid .stop { padding: 28px 8px; }
+  .wrap > .row { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap > .row button { padding: 8px 12px; font-size: 15px; }
+  .wrap { position: relative; }
+  header { justify-content: flex-start; gap: 20px; padding-right: 300px; min-height: 40px; }
+  .wrap > .row button { padding: 8px 12px; font-size: 15px; }
+}
 @media (prefers-reduced-motion: reduce) { .knob { transition: none !important; } }
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} [hidden]{display:none!important}</style>
@@ -88,7 +107,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v4</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v5</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -104,11 +123,12 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
   <div class="pads">
     <div class="pad" id="steer" aria-label="Steering pad"><span class="label">Steer</span><div class="center"></div><div class="knob"></div></div>
+    <div class="mid">
+      <div class="readout"><span id="rSteer">steer 0.00</span><span id="rSpeed">speed 0.00</span><span id="rSent">packets 0</span></div>
+      <button class="stop" id="stop">Stop</button>
+    </div>
     <div class="pad" id="throttle" aria-label="Throttle"><span class="label">Gas</span><div class="fill"></div><div class="knob"></div></div>
   </div>
-  <div class="readout"><span id="rSteer">steer 0.00</span><span id="rSpeed">speed 0.00</span><span id="rSent">packets 0</span></div>
-
-  <button class="stop" id="stop">Stop</button>
 
   <details open>
     <summary>Settings</summary>
@@ -196,7 +216,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 4;
+  const VERSION = 5;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
