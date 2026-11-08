@@ -415,7 +415,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     scanTimer = setInterval(() => { if (!connected) return stopScan(); playNum((soundNum() + 1) % 65536); }, +$('scanGap').value);
   });
   let saved = [];
-  try { saved = JSON.parse(localStorage.getItem('mcq-sounds') || '[4096,4352,4864,6144,7168]'); } catch (e) { saved = [4096, 4352, 4864, 6144, 7168]; }
+  try { saved = JSON.parse(localStorage.getItem('mcq-sounds') || '[256,2560,4096,4352,4864,6144,7168]'); } catch (e) { saved = [256, 2560, 4096, 4352, 4864, 6144, 7168]; }
   function renderSaved() {
     const box = $('saved'); box.textContent = '';
     for (const n of saved) {
