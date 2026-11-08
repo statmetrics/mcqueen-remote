@@ -1,0 +1,356 @@
+<title>McQueen Remote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Barlow:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one-screen pit-wall remote. Status strip on top, steering pad left, throttle right, extras below. Single dark look by choice. */
+:root {
+  --bg: #121216;
+  --panel: #1c1c22;
+  --line: #2e2e38;
+  --fg: #f2efe9;
+  --muted: #9a97a3;
+  --red: #e1251b;
+  --gold: #f5b82e;
+  --ok: #3ccf7a;
+  --display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 20px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: .02em; margin: 0; line-height: 1;
+  text-transform: uppercase; font-style: italic; }
+h1 span { color: var(--red); }
+.num { font-family: var(--display); font-weight: 800; font-style: italic; color: var(--gold); }
+.status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.status[data-s="on"] .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.status[data-s="busy"] .dot { background: var(--gold); }
+.status[data-s="err"] .dot { background: var(--red); }
+button {
+  font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: .04em; text-transform: uppercase;
+  border: 0; border-radius: 10px; padding: 12px 18px; color: var(--fg); background: var(--panel);
+  border: 1px solid var(--line); cursor: pointer;
+}
+button.primary { background: var(--red); border-color: var(--red); }
+button:disabled { opacity: .45; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.note { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 8px;
+  padding: 10px 12px; font-size: 14px; line-height: 1.45; }
+.note[hidden] { display: none; }
+.pads { display: grid; grid-template-columns: 1fr 120px; gap: 12px; }
+.pad { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; touch-action: none;
+  overflow: hidden; }
+.pad .label { position: absolute; top: 8px; left: 12px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+#steer { height: 220px;
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--line) calc(10% - 1px) 10%); }
+#steer .center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--muted); opacity: .5; }
+#steer .knob { position: absolute; top: 50%; left: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  background: var(--red); border: 3px solid var(--fg); transition: transform .12s; }
+#throttle { height: 220px;
+  background-image: linear-gradient(var(--bg), var(--bg)); background-size: 100% 2px; background-position: 0 50%; background-repeat: no-repeat; }
+#throttle .fill { position: absolute; left: 0; right: 0; background: var(--red); opacity: .8; }
+#throttle .knob { position: absolute; left: 50%; top: 50%; width: 80px; height: 40px; margin: -20px 0 0 -40px; border-radius: 8px;
+  background: var(--fg); transition: transform .12s; }
+.pad.held .knob { transition: none; }
+.readout { display: flex; gap: 16px; font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+summary { font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+details > .body { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--red); }
+input[type=number] { width: 70px; font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
+#log { font-family: var(--mono); font-size: 11px; color: var(--muted); max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.stop { width: 100%; font-size: 22px; padding: 16px; background: var(--bg); border: 2px solid var(--red); color: var(--red); }
+@media (max-width: 420px) { .pads { grid-template-columns: 1fr 96px; } #throttle .knob { width: 64px; margin-left: -32px; } }
+@media (prefers-reduced-motion: reduce) { .knob { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span></h1>
+    <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
+  </header>
+
+  <div class="note" id="noBt" hidden>
+    This browser can't reach Bluetooth. On iPhone, open this page in the free <b>Bluefy</b> app from the App Store
+    (Safari and Chrome on iPhone don't allow Bluetooth for web pages).
+  </div>
+
+  <div class="row">
+    <button class="primary" id="connect">Connect car</button>
+    <button id="disconnect" disabled>Disconnect</button>
+  </div>
+
+  <div class="pads">
+    <div class="pad" id="steer" aria-label="Steering pad"><span class="label">Steer</span><div class="center"></div><div class="knob"></div></div>
+    <div class="pad" id="throttle" aria-label="Throttle"><span class="label">Gas</span><div class="fill"></div><div class="knob"></div></div>
+  </div>
+  <div class="readout"><span id="rSteer">steer 0.00</span><span id="rSpeed">speed 0.00</span><span id="rSent">packets 0</span></div>
+
+  <button class="stop" id="stop">Stop</button>
+
+  <details open>
+    <summary>Settings</summary>
+    <div class="body">
+      <label class="opt">Top speed <input type="range" id="maxSpeed" min="10" max="100" value="40"> <span id="maxSpeedV" class="readout">40%</span></label>
+      <label class="opt">Steering amount <input type="range" id="maxSteer" min="20" max="100" value="100"> <span id="maxSteerV" class="readout">100%</span></label>
+      <label class="opt"><input type="checkbox" id="flipSteer"> Flip steering (if left turns right)</label>
+      <label class="opt"><input type="checkbox" id="flipGas"> Flip gas (if forward goes backward)</label>
+      <label class="opt"><input type="checkbox" id="showAll"> Show all Bluetooth devices when connecting (if the car isn't listed)</label>
+    </div>
+  </details>
+
+  <details>
+    <summary>Experiments</summary>
+    <div class="body">
+      <p style="margin:0;font-size:14px;color:var(--muted)">Untested on this car. Sounds use the command Sphero's other toys use; the car may ignore it.</p>
+      <div class="row"><label class="opt">Sound # <input type="number" id="soundIdx" min="0" max="255" value="0"></label>
+        <button id="playSound" disabled>Play</button><button id="nextSound" disabled>Next</button></div>
+      <div class="row"><button id="sleepBtn" disabled>Put car to sleep</button></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Connection log</summary>
+    <div class="body"><pre id="log"></pre></div>
+  </details>
+</div>
+
+<script>
+(() => {
+  // ---- Sphero API v2 protocol (from spherov2.js, verified against a packet captured from the official app) ----
+  const SVC_API = '00010001-574f-4f20-5370-6865726f2121';
+  const SVC_DFU = '00020001-574f-4f20-5370-6865726f2121';
+  const CH_API = '00010002-574f-4f20-5370-6865726f2121';
+  const CH_DFU_CTRL = '00020002-574f-4f20-5370-6865726f2121';
+  const CH_ANTIDOS = '00020005-574f-4f20-5370-6865726f2121';
+  const SOP = 0x8d, EOP = 0xd8, ESC = 0xab;
+  const F_RESP = 0x02, F_KEEPALIVE = 0x08, F_TARGET = 0x10;
+
+  let seq = 0;
+  function packet({ flags, target, device, cmd, payload = [] }) {
+    const body = [flags | (target != null ? F_TARGET : 0)];
+    if (target != null) body.push(target);
+    body.push(device, cmd, seq, ...payload);
+    seq = (seq + 1) % 255;
+    let sum = 0; for (const b of body) sum = (sum + b) & 0xff;
+    body.push((~sum) & 0xff);
+    const out = [SOP];
+    for (const b of body) {
+      if (b === SOP) out.push(ESC, 0x05);
+      else if (b === EOP) out.push(ESC, 0x50);
+      else if (b === ESC) out.push(ESC, 0x23);
+      else out.push(b);
+    }
+    out.push(EOP);
+    return new Uint8Array(out);
+  }
+  function f32(n) { const dv = new DataView(new ArrayBuffer(4)); dv.setFloat32(0, n, false); return [...new Uint8Array(dv.buffer)]; }
+  const cmds = {
+    wake: () => packet({ flags: F_RESP | F_KEEPALIVE, target: 0x11, device: 0x13, cmd: 0x0d }),
+    sleep: () => packet({ flags: F_RESP | F_KEEPALIVE, target: 0x11, device: 0x13, cmd: 0x01 }),
+    // Same flags the official app uses for driving: keep-alive only, no reply requested.
+    driveRc: (steer, speed) => packet({ flags: F_KEEPALIVE, device: 0x16, cmd: 0x02, payload: [...f32(steer), ...f32(speed)] }),
+    sound: (i) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x07, payload: [i & 0xff, 0, 0] }),
+  };
+  window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
+
+  // ---- UI helpers ----
+  const $ = (id) => document.getElementById(id);
+  const logEl = $('log');
+  function log(msg) { const t = new Date().toLocaleTimeString(); logEl.textContent = `${t}  ${msg}\n` + logEl.textContent.slice(0, 4000); }
+  function setStatus(s, text) { $('status').dataset.s = s; $('statusText').textContent = text; }
+  const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, '0')).join(' ');
+
+  if (!navigator.bluetooth) { $('noBt').hidden = false; $('connect').disabled = true; }
+
+  // ---- Bluetooth ----
+  let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
+
+  async function write(ch, data) {
+    if (ch.writeValueWithoutResponse) {
+      try { return await ch.writeValueWithoutResponse(data); } catch (e) { /* fall through */ }
+    }
+    return ch.writeValue(data);
+  }
+
+  async function connect() {
+    try {
+      setStatus('busy', 'Pick the car (name starts with LM-)');
+      const opts = $('showAll').checked
+        ? { acceptAllDevices: true, optionalServices: [SVC_API, SVC_DFU] }
+        : { filters: [{ namePrefix: 'LM-' }], optionalServices: [SVC_API, SVC_DFU] };
+      device = await navigator.bluetooth.requestDevice(opts);
+      log(`Selected ${device.name || device.id}`);
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+      setStatus('busy', 'Connecting…');
+      const server = await device.gatt.connect();
+      const api = await server.getPrimaryService(SVC_API);
+      const dfu = await server.getPrimaryService(SVC_DFU);
+      chApi = await api.getCharacteristic(CH_API);
+      chDfu = await dfu.getCharacteristic(CH_DFU_CTRL);
+      const chAnti = await dfu.getCharacteristic(CH_ANTIDOS);
+      log('Found Sphero services');
+
+      await write(chAnti, new TextEncoder().encode('usetheforce...band'));
+      log('Sent unlock');
+
+      chDfu.addEventListener('characteristicvaluechanged', () => { write(chDfu, new Uint8Array([0x30])).catch(() => {}); });
+      await chDfu.startNotifications();
+
+      let gotFirst;
+      const first = new Promise((r) => (gotFirst = r));
+      chApi.addEventListener('characteristicvaluechanged', (e) => {
+        const v = new Uint8Array(e.target.value.buffer);
+        gotFirst();
+        log('car → ' + hex(v));
+      });
+      await chApi.startNotifications();
+      await Promise.race([first, new Promise((r) => setTimeout(r, 1500))]);
+
+      seq = 0;
+      await write(chApi, cmds.wake());
+      log('Sent wake');
+      connected = true;
+      setStatus('on', `Connected to ${device.name || 'car'}`);
+      $('connect').disabled = true;
+      for (const id of ['disconnect', 'playSound', 'nextSound', 'sleepBtn']) $(id).disabled = false;
+      driveTimer = setInterval(tick, 80);
+    } catch (e) {
+      log('Error: ' + (e && e.message ? e.message : e));
+      if (e && e.name === 'NotFoundError') setStatus('off', 'No car picked. Is it switched on?');
+      else if (e && e.name === 'SecurityError') { setStatus('err', 'Bluetooth blocked on this page'); $('noBt').hidden = false; }
+      else setStatus('err', 'Connection failed. See log.');
+      cleanup();
+    }
+  }
+
+  function cleanup() {
+    clearInterval(driveTimer); driveTimer = null; connected = false; chApi = null; busy = false;
+    $('connect').disabled = !navigator.bluetooth;
+    for (const id of ['disconnect', 'playSound', 'nextSound', 'sleepBtn']) $(id).disabled = true;
+  }
+  function onDisconnected() { log('Car disconnected'); setStatus('off', 'Disconnected'); cleanup(); }
+
+  async function send(data, label) {
+    if (!chApi) return;
+    try { await write(chApi, data); if (label) log(label + ' → ' + hex(data)); } catch (e) { log('Write failed: ' + e.message); }
+  }
+
+  // ---- Controls ----
+  const state = { steer: 0, gas: 0 };
+  function outputs() {
+    const maxSp = $('maxSpeed').value / 100, maxSt = $('maxSteer').value / 100;
+    let steer = state.steer * maxSt, speed = state.gas * maxSp;
+    if ($('flipSteer').checked) steer = -steer;
+    if ($('flipGas').checked) speed = -speed;
+    return { steer: Math.round(steer * 1000) / 1000 + 0, speed: Math.round(speed * 1000) / 1000 + 0 };
+  }
+  async function tick() {
+    const { steer, speed } = outputs();
+    if (!connected || busy) return;
+    busy = true;
+    try { await write(chApi, cmds.driveRc(steer, speed)); sent++; $('rSent').textContent = `packets ${sent}`; }
+    catch (e) { log('Drive write failed: ' + e.message); }
+    busy = false;
+  }
+
+  function showReadout() {
+    const { steer, speed } = outputs();
+    $('rSteer').textContent = `steer ${steer.toFixed(2)}`;
+    $('rSpeed').textContent = `speed ${speed.toFixed(2)}`;
+  }
+
+  function bindPad(el, axis) {
+    const knob = el.querySelector('.knob'), fill = el.querySelector('.fill');
+    let active = null; // pointer id or touch identifier currently driving this pad
+    function draw() {
+      if (axis === 'x') knob.style.transform = `translateX(${state.steer * (el.clientWidth / 2 - 36)}px)`;
+      else {
+        const h = el.clientHeight / 2 - 24;
+        knob.style.transform = `translateY(${-state.gas * h}px)`;
+        const px = Math.abs(state.gas) * (el.clientHeight / 2);
+        fill.style.top = state.gas >= 0 ? `calc(50% - ${px}px)` : '50%';
+        fill.style.height = `${px}px`;
+        fill.style.background = state.gas >= 0 ? 'var(--red)' : 'var(--gold)';
+      }
+      showReadout();
+    }
+    function update(x, y) {
+      const r = el.getBoundingClientRect();
+      if (axis === 'x') state.steer = Math.max(-1, Math.min(1, ((x - r.left) / r.width) * 2 - 1));
+      else state.gas = Math.max(-1, Math.min(1, -(((y - r.top) / r.height) * 2 - 1)));
+      if (Math.abs(axis === 'x' ? state.steer : state.gas) < 0.06) axis === 'x' ? (state.steer = 0) : (state.gas = 0);
+      draw();
+    }
+    function start(id, x, y) { if (active !== null) return; active = id; el.classList.add('held'); update(x, y); }
+    function release() { active = null; el.classList.remove('held'); axis === 'x' ? (state.steer = 0) : (state.gas = 0); draw(); }
+
+    // Touch events first: they work in every iPhone browser, including Bluefy.
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0]; start('t' + t.identifier, t.clientX, t.clientY);
+    }, { passive: false });
+    el.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) if ('t' + t.identifier === active) update(t.clientX, t.clientY);
+    }, { passive: false });
+    const touchEnd = (e) => { for (const t of e.changedTouches) if ('t' + t.identifier === active) release(); };
+    el.addEventListener('touchend', touchEnd); el.addEventListener('touchcancel', touchEnd);
+
+    // Mouse / pen on computers.
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return;
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      start('p' + e.pointerId, e.clientX, e.clientY);
+    });
+    el.addEventListener('pointermove', (e) => { if ('p' + e.pointerId === active) update(e.clientX, e.clientY); });
+    const pEnd = (e) => { if ('p' + e.pointerId === active) release(); };
+    el.addEventListener('pointerup', pEnd); el.addEventListener('pointercancel', pEnd);
+    return draw;
+  }
+  const drawSteer = bindPad($('steer'), 'x'), drawGas = bindPad($('throttle'), 'y');
+
+  // Keyboard driving for computers: arrows or WASD.
+  const keys = new Set();
+  function fromKeys() {
+    state.steer = (keys.has('ArrowRight') || keys.has('d') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('a') ? 1 : 0);
+    state.gas = (keys.has('ArrowUp') || keys.has('w') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('s') ? 1 : 0);
+    drawSteer(); drawGas();
+  }
+  addEventListener('keydown', (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (/^(Arrow|[wasd]$)/.test(k)) { keys.add(k); fromKeys(); e.preventDefault(); } if (k === ' ') stopAll(); });
+  addEventListener('keyup', (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); fromKeys(); });
+
+  function stopAll() { state.steer = 0; state.gas = 0; drawSteer(); drawGas(); if (connected) send(cmds.driveRc(0, 0)); }
+
+  $('connect').addEventListener('click', connect);
+  $('disconnect').addEventListener('click', () => { stopAll(); setTimeout(() => device && device.gatt.connected && device.gatt.disconnect(), 150); });
+  $('stop').addEventListener('click', stopAll);
+  $('playSound').addEventListener('click', () => send(cmds.sound(+$('soundIdx').value || 0), `Sound ${$('soundIdx').value}`));
+  $('nextSound').addEventListener('click', () => { $('soundIdx').value = ((+$('soundIdx').value || 0) + 1) % 256; $('playSound').click(); });
+  $('sleepBtn').addEventListener('click', () => send(cmds.sleep(), 'Sleep'));
+  for (const id of ['maxSpeed', 'maxSteer']) {
+    const upd = () => ($(id + 'V').textContent = $(id).value + '%');
+    $(id).addEventListener('input', upd); upd();
+  }
+  try { for (const id of ['maxSpeed', 'maxSteer', 'flipSteer', 'flipGas']) {
+    const v = localStorage.getItem('mcq-' + id); if (v != null) { const el = $(id); el.type === 'checkbox' ? (el.checked = v === '1') : (el.value = v); el.dispatchEvent(new Event('input')); }
+    $(id).addEventListener('change', () => { try { const el = $(id); localStorage.setItem('mcq-' + id, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value); } catch (e) {} });
+  } } catch (e) {}
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopAll(); });
+  log(navigator.bluetooth ? 'Ready. Turn the car on, then tap Connect car.' : 'Bluetooth not available in this browser.');
+})();
+</script>
