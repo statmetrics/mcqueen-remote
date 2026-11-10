@@ -96,7 +96,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   .wrap > .row { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
   .wrap > .row button { padding: 8px 12px; font-size: 15px; }
   .wrap { position: relative; }
-  header { justify-content: flex-start; gap: 20px; padding-right: 300px; min-height: 40px; }
+  header { justify-content: flex-start; gap: 20px; padding-right: 380px; min-height: 40px; }
   .wrap > .row button { padding: 8px 12px; font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) { .knob { transition: none !important; } }
@@ -107,7 +107,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v5</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v6</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -119,6 +119,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   <div class="row">
     <button class="primary" id="connect">Connect car</button>
     <button id="disconnect" disabled>Disconnect</button>
+    <button id="wakeBtn" disabled>Wake</button>
   </div>
 
   <div class="pads">
@@ -216,7 +217,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 5;
+  const VERSION = 6;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -256,7 +257,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   if (!navigator.bluetooth) { $('noBt').hidden = false; $('connect').disabled = true; }
 
   // ---- Bluetooth ----
-  const CTRL_IDS = ['findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -476,6 +477,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
+  $('wakeBtn').addEventListener('click', () => send(cmds.wake(), 'Wake'));
   $('sleepBtn').addEventListener('click', () => send(cmds.sleep(), 'Sleep'));
   for (const id of ['maxSpeed', 'maxSteer']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
