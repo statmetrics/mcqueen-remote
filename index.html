@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v9</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v10</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -159,7 +159,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <button id="scanBtn" disabled>Scan</button></div>
       <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px">
         <div style="font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:.04em;text-transform:uppercase">Find sounds automatically</div>
-        <p style="margin:0;font-size:14px;color:var(--muted)">Asks the car about each number and keeps the ones it accepts. Working sounds will play as it goes.</p>
+        <p style="margin:0;font-size:14px;color:var(--muted)">Tested: this car answers OK to every number, so the finder can't tell real sounds from silent ones. Use Scan and listen instead.</p>
         <div class="row"><label class="opt">From <input type="number" id="findFrom" value="0" min="0" max="65535" inputmode="numeric"></label>
           <label class="opt">to <input type="number" id="findTo" value="300" min="0" max="65535" inputmode="numeric"></label>
           <button id="findBtn" disabled>Find</button></div>
@@ -167,7 +167,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div class="row" id="found"></div>
       </div>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
-      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div></div>
+      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div></div>
     </div>
   </details>
 
@@ -223,7 +223,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 9;
+  const VERSION = 10;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -463,6 +463,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     try { localStorage.setItem('mcq-sounds', JSON.stringify(saved)); } catch (e) {}
   }
+  $('clearSaved').addEventListener('click', () => { saved = []; renderSaved(); });
+  $('resetSaved').addEventListener('click', () => { saved = [256, 2560, 4096, 4352, 4864, 6144, 7168]; renderSaved(); });
   $('saveSound').addEventListener('click', () => { const n = soundNum(); if (!saved.includes(n)) { saved.push(n); saved.sort((x, y) => x - y); renderSaved(); } });
   renderSaved();
   // ---- Automatic finder ----
@@ -498,8 +500,13 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('sleepBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
     sleeping = true; // stop streaming drive updates so the car can actually doze off
-    const ok = await power('sleep');
-    setStatus(ok ? 'busy' : 'err', ok ? 'Asleep. Tap Wake, or touch the pads.' : 'Car did not accept sleep. See log.');
+    // Send to every processor; the car only stays asleep once Bluetooth lets go, so disconnect after.
+    for (const t of [null, 0x11, 0x12]) {
+      const r = await request(cmds.sleep(t));
+      log(`sleep (${t ? 'target 0x' + t.toString(16) : 'no target'}): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+    }
+    setStatus('busy', 'Going to sleep… disconnecting in 3 seconds');
+    setTimeout(() => { if (device && device.gatt.connected) { log('Disconnecting so he can sleep'); device.gatt.disconnect(); } }, 3000);
   });
   for (const id of ['maxSpeed', 'maxSteer', 'steerSens']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
