@@ -107,7 +107,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v6</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v7</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -135,7 +135,10 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     <summary>Settings</summary>
     <div class="body">
       <label class="opt">Top speed <input type="range" id="maxSpeed" min="10" max="100" value="40"> <span id="maxSpeedV" class="readout">40%</span></label>
-      <label class="opt">Steering amount <input type="range" id="maxSteer" min="20" max="100" value="100"> <span id="maxSteerV" class="readout">100%</span></label>
+      <label class="opt">Steering sensitivity <input type="range" id="steerSens" min="100" max="300" value="160"> <span id="steerSensV" class="readout">160%</span></label>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Higher means a shorter swipe reaches full turn. At 200%, halfway across the pad is full turn.</p>
+      <label class="opt">Steering amount <input type="range" id="maxSteer" min="20" max="150" value="100"> <span id="maxSteerV" class="readout">100%</span></label>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">How far the wheels turn. Over 100% is a test: the car may turn tighter, or may ignore it.</p>
       <label class="opt"><input type="checkbox" id="flipSteer"> Flip steering (if left turns right)</label>
       <label class="opt"><input type="checkbox" id="flipGas"> Flip gas (if forward goes backward)</label>
       <label class="opt"><input type="checkbox" id="showAll"> Show all Bluetooth devices when connecting (if the car isn't listed)</label>
@@ -217,7 +220,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 6;
+  const VERSION = 7;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -335,7 +338,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   const state = { steer: 0, gas: 0 };
   function outputs() {
     const maxSp = $('maxSpeed').value / 100, maxSt = $('maxSteer').value / 100;
-    let steer = state.steer * maxSt, speed = state.gas * maxSp;
+    const sens = $('steerSens').value / 100;
+    let steer = Math.max(-1, Math.min(1, state.steer * sens)) * maxSt, speed = state.gas * maxSp;
     if ($('flipSteer').checked) steer = -steer;
     if ($('flipGas').checked) speed = -speed;
     return { steer: Math.round(steer * 1000) / 1000 + 0, speed: Math.round(speed * 1000) / 1000 + 0 };
@@ -479,11 +483,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
   $('wakeBtn').addEventListener('click', () => send(cmds.wake(), 'Wake'));
   $('sleepBtn').addEventListener('click', () => send(cmds.sleep(), 'Sleep'));
-  for (const id of ['maxSpeed', 'maxSteer']) {
+  for (const id of ['maxSpeed', 'maxSteer', 'steerSens']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
     $(id).addEventListener('input', upd); upd();
   }
-  try { for (const id of ['maxSpeed', 'maxSteer', 'flipSteer', 'flipGas']) {
+  try { for (const id of ['maxSpeed', 'maxSteer', 'steerSens', 'flipSteer', 'flipGas']) {
     const v = localStorage.getItem('mcq-' + id); if (v != null) { const el = $(id); el.type === 'checkbox' ? (el.checked = v === '1') : (el.value = v); el.dispatchEvent(new Event('input')); }
     $(id).addEventListener('change', () => { try { const el = $(id); localStorage.setItem('mcq-' + id, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value); } catch (e) {} });
   } } catch (e) {}
