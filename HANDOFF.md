@@ -13,7 +13,7 @@ This project replaces the app with a single web page that drives the car directl
 - **Code:** everything is in `index.html`, with no build step. GitHub Pages serves it from the `main` branch, at the repository root.
 - **The car:** Bluetooth name `LM-C644`. Any McQueen's name starts with `LM-`.
 
-## Status (version 10, 2026-11-10)
+## Status (version 12, 2026-11-10)
 
 | Feature | Status |
 |---|---|
@@ -24,8 +24,8 @@ This project replaces the app with a single web page that drives the car directl
 | Sounds | Partly working. Known sound IDs: 256, 2560, 4096, 4352, 4864, 6144, 7168 |
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
-| Sleep | Works too well. The last test left the car asleep with Bluetooth off, so it can't be found. See "Next steps" |
-| Mouth movement / animations | Not started |
+| Sleep | Version 11 made it gentler: only the no-target sleep, drive updates paused, page stays connected. Needs testing: does the car stay findable after Disconnect? |
+| Mouth movement / animations | Version 12 adds an Animations test section (Play, Prev, Next, Scan, Save, choice of target). IDs not yet tested on the car |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
 ### Where we stopped
@@ -33,6 +33,8 @@ This project replaces the app with a single web page that drives the car directl
 On the last test, version 10's Sleep put the car to sleep, but it then didn't show up in the Bluetooth device list. Shaking it didn't wake it. The owner plugged it in to charge overnight. Charging woke it once before, on the first night.
 
 ## Next steps, in order
+
+**Version 11–12 changes:** Sleep now sends only the no-target sleep and stays connected (steps 2 below is done in code, waiting on a real-car test). The Animations section (step 3) is built; next is scanning IDs on the car and saving the ones that move the mouth or play voice lines.
 
 1. **Confirm the car wakes on the charger.** If it doesn't, try holding it, rolling it, or leaving it on the charger longer.
 2. **Make Sleep gentler.** Version 10 sends sleep (power device `0x13`, command `0x01`) three times: with no target, to target `0x11`, and to target `0x12`. Then it disconnects after 3 seconds. In version 9, the no-target form alone returned OK. On one occasion the car said its "power nap" line and slept, but it stayed awake when the page kept the connection open. Suggested fix: send only the no-target sleep, pause the drive stream (already done), and either stay connected or disconnect. Test whether the car stays visible to Bluetooth afterwards. If it still disappears, label the button clearly, for example "Sleep (wake with charger or a shake)".
@@ -70,7 +72,7 @@ All of this was verified on the real car unless marked otherwise.
 | Play sound | `0x1a` | `0x07` | sound ID, 16-bit big-endian, then a mode byte (`0` = play now) | the car answers OK to any ID |
 | Stop sound | `0x1a` | `0x0a` | none | |
 | Volume | `0x1a` | `0x08` | 0–255 | untested |
-| Animation | `0x17` | `0x05` | `[0x00, id]` | untested, from other Sphero toys |
+| Animation | `0x17` | `0x05` | `[0x00, id]` | from other Sphero toys; version 12 has a test section for it |
 
 **Mistakes already fixed**
 - Version 1–2 ran inside a claude.ai artifact. Claude's frame blocks the Web Bluetooth device-picker result, so the page never connected. **Always use the GitHub Pages copy.**
