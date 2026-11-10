@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v10</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v11</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -223,7 +223,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 10;
+  const VERSION = 11;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -500,13 +500,13 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('sleepBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
     sleeping = true; // stop streaming drive updates so the car can actually doze off
-    // Send to every processor; the car only stays asleep once Bluetooth lets go, so disconnect after.
-    for (const t of [null, 0x11, 0x12]) {
-      const r = await request(cmds.sleep(t));
-      log(`sleep (${t ? 'target 0x' + t.toString(16) : 'no target'}): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
-    }
-    setStatus('busy', 'Going to sleep… disconnecting in 3 seconds');
-    setTimeout(() => { if (device && device.gatt.connected) { log('Disconnecting so he can sleep'); device.gatt.disconnect(); } }, 3000);
+    // Gentle sleep: only the no-target form (the car answers OK to it). Version 10 also sent it to
+    // targets 0x11 and 0x12 and then disconnected, which left the car invisible until it was charged.
+    // Stay connected; tap Wake or touch a pad to wake him, or Disconnect to test whether he stays findable.
+    const r = await request(cmds.sleep());
+    log(`sleep (no target): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+    if (r && r.err === 0) setStatus('busy', 'Asleep (still connected). Tap Wake or touch a pad.');
+    else setStatus('err', 'Car did not accept sleep. See log.');
   });
   for (const id of ['maxSpeed', 'maxSteer', 'steerSens']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');

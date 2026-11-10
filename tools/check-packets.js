@@ -21,13 +21,16 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const escaped = arr(__mcq.cmds.driveRc(0, 0));
     __mcq.resetSeq(0);
     const sound = arr(__mcq.cmds.sound(256));
-    return { drive, escaped, sound };
+    __mcq.resetSeq(0);
+    const sleep = arr(__mcq.cmds.sleep());
+    return { drive, escaped, sound, sleep };
   });
 
   const checks = [
     ['drive matches official app capture', hex(got.drive), '8d 08 16 02 8b bf 72 93 de 00 00 00 00 b2 d8'],
     ['sequence byte 0x8d is escaped', hex(got.escaped), '8d 08 16 02 ab 05 00 00 00 00 00 00 00 00 52 d8'],
     ['sound 256 is 16-bit big-endian', hex(got.sound), '8d 0a 1a 07 00 01 00 00 d3 d8'],
+    ['sleep has no target', hex(got.sleep), '8d 02 13 01 00 e9 d8'],
   ];
   let failed = errors.length > 0;
   for (const [name, actual, expected] of checks) {
