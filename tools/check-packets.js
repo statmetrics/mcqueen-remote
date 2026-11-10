@@ -23,7 +23,9 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const sound = arr(__mcq.cmds.sound(256));
     __mcq.resetSeq(0);
     const sleep = arr(__mcq.cmds.sleep());
-    return { drive, escaped, sound, sleep };
+    __mcq.resetSeq(0);
+    const anim = arr(__mcq.cmds.animation(5));
+    return { drive, escaped, sound, sleep, anim };
   });
 
   const checks = [
@@ -31,6 +33,7 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     ['sequence byte 0x8d is escaped', hex(got.escaped), '8d 08 16 02 ab 05 00 00 00 00 00 00 00 00 52 d8'],
     ['sound 256 is 16-bit big-endian', hex(got.sound), '8d 0a 1a 07 00 01 00 00 d3 d8'],
     ['sleep has no target', hex(got.sleep), '8d 02 13 01 00 e9 d8'],
+    ['animation 5 is [0x00, id]', hex(got.anim), '8d 0a 17 05 00 00 05 d4 d8'],
   ];
   let failed = errors.length > 0;
   for (const [name, actual, expected] of checks) {
