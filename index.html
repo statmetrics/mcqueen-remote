@@ -82,6 +82,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 #log { font-family: var(--mono); font-size: 11px; color: var(--muted); max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
 .stop { width: 100%; font-size: 22px; padding: 16px; background: var(--bg); border: 2px solid var(--red); color: var(--red); }
 @media (max-width: 420px) and (orientation: portrait) { .pads { grid-template-columns: 1fr 96px; } #throttle .knob { width: 64px; margin-left: -32px; } }
+@media (orientation: portrait) { .wrap > .row { display: grid; grid-template-columns: 1fr 1fr; } }
 /* Landscape: game-controller layout. Steer under the left thumb, gas under the right, Stop between. */
 @media (orientation: landscape) and (max-height: 560px) {
   body { padding-block: 6px 12px; }
@@ -96,8 +97,9 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   .wrap > .row { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
   .wrap > .row button { padding: 8px 12px; font-size: 15px; }
   .wrap { position: relative; }
-  header { justify-content: flex-start; gap: 20px; padding-right: 380px; min-height: 40px; }
-  .wrap > .row button { padding: 8px 12px; font-size: 15px; }
+  header { justify-content: flex-start; gap: 20px; padding-right: 400px; min-height: 40px; }
+  .wrap > .row button { padding: 8px 10px; font-size: 14px; }
+  .wrap > .row { gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .knob { transition: none !important; } }
 </style>
@@ -107,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v7</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v8</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -120,6 +122,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     <button class="primary" id="connect">Connect car</button>
     <button id="disconnect" disabled>Disconnect</button>
     <button id="wakeBtn" disabled>Wake</button>
+    <button id="sleepBtn" disabled>Sleep</button>
   </div>
 
   <div class="pads">
@@ -165,7 +168,6 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       </div>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div></div>
-      <div class="row"><button id="sleepBtn" disabled>Put car to sleep</button></div>
     </div>
   </details>
 
@@ -220,7 +222,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 7;
+  const VERSION = 8;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -482,7 +484,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
   $('wakeBtn').addEventListener('click', () => send(cmds.wake(), 'Wake'));
-  $('sleepBtn').addEventListener('click', () => send(cmds.sleep(), 'Sleep'));
+  $('sleepBtn').addEventListener('click', () => { stopAll(); setTimeout(() => send(cmds.sleep(), 'Sleep'), 150); });
   for (const id of ['maxSpeed', 'maxSteer', 'steerSens']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
     $(id).addEventListener('input', upd); upd();
