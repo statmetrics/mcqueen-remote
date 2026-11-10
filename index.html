@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v8</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v9</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -210,8 +210,9 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   }
   function f32(n) { const dv = new DataView(new ArrayBuffer(4)); dv.setFloat32(0, n, false); return [...new Uint8Array(dv.buffer)]; }
   const cmds = {
-    wake: () => packet({ flags: F_RESP | F_KEEPALIVE, target: 0x11, device: 0x13, cmd: 0x0d }),
-    sleep: () => packet({ flags: F_RESP | F_KEEPALIVE, target: 0x11, device: 0x13, cmd: 0x01 }),
+    // Power commands: try with no target first (as Sphero's 2017 toys use), then processor 0x11.
+    wake: (target = 0x11) => packet({ flags: F_RESP | F_KEEPALIVE, target: target || undefined, device: 0x13, cmd: 0x0d }),
+    sleep: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x01 }),
     // Same flags the official app uses for driving: keep-alive only, no reply requested.
     driveRc: (steer, speed) => packet({ flags: F_KEEPALIVE, device: 0x16, cmd: 0x02, payload: [...f32(steer), ...f32(speed)] }),
     // Sound IDs are 16-bit big-endian, then a playback mode byte (0 = play now).
@@ -222,7 +223,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 8;
+  const VERSION = 9;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -262,6 +263,16 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   if (!navigator.bluetooth) { $('noBt').hidden = false; $('connect').disabled = true; }
 
   // ---- Bluetooth ----
+  let sleeping = false;
+  async function power(kind) {
+    for (const t of [null, 0x11]) {
+      const r = await request(cmds[kind](t));
+      const res = r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply';
+      log(`${kind} (${t ? 'target 0x11' : 'no target'}): ${res}`);
+      if (r && r.err === 0) return true;
+    }
+    return false;
+  }
   const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
@@ -348,7 +359,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   }
   async function tick() {
     const { steer, speed } = outputs();
-    if (!connected || busy) return;
+    if (!connected || busy || sleeping) return;
     busy = true;
     try { await write(chApi, cmds.driveRc(steer, speed)); sent++; $('rSent').textContent = `packets ${sent}`; }
     catch (e) { log('Drive write failed: ' + e.message); }
@@ -383,7 +394,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       if (Math.abs(axis === 'x' ? state.steer : state.gas) < 0.06) axis === 'x' ? (state.steer = 0) : (state.gas = 0);
       draw();
     }
-    function start(id, x, y) { if (active !== null) return; active = id; el.classList.add('held'); update(x, y); }
+    function start(id, x, y) { if (active !== null) return; if (sleeping) { sleeping = false; if (connected) power('wake'); } active = id; el.classList.add('held'); update(x, y); }
     function release() { active = null; el.classList.remove('held'); axis === 'x' ? (state.steer = 0) : (state.gas = 0); draw(); }
 
     // Touch events first: they work in every iPhone browser, including Bluefy.
@@ -483,8 +494,13 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
-  $('wakeBtn').addEventListener('click', () => send(cmds.wake(), 'Wake'));
-  $('sleepBtn').addEventListener('click', () => { stopAll(); setTimeout(() => send(cmds.sleep(), 'Sleep'), 150); });
+  $('wakeBtn').addEventListener('click', async () => { sleeping = false; await power('wake'); setStatus('on', `Connected to ${device && device.name || 'car'}`); });
+  $('sleepBtn').addEventListener('click', async () => {
+    stopAll(); await new Promise((r) => setTimeout(r, 200));
+    sleeping = true; // stop streaming drive updates so the car can actually doze off
+    const ok = await power('sleep');
+    setStatus(ok ? 'busy' : 'err', ok ? 'Asleep. Tap Wake, or touch the pads.' : 'Car did not accept sleep. See log.');
+  });
   for (const id of ['maxSpeed', 'maxSteer', 'steerSens']) {
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
     $(id).addEventListener('input', upd); upd();
