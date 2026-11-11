@@ -25,7 +25,7 @@ This project replaces the app with a single web page that drives the car directl
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
 | Sleep | Version 11 made it gentler: only the no-target sleep, drive updates paused, page stays connected. Needs testing: does the car stay findable after Disconnect? |
-| Mouth movement / animations | Version 12 adds an Animations test section (Play, Prev, Next, Scan, Save, choice of target). IDs not yet tested on the car |
+| Mouth movement / animations | Version 12 adds an Animations test section (Play, Prev, Next, Scan, Save, choice of target). Tested 0–67 with no target: the car answers OK to all, nothing visible happened. Version 13 sends 16-bit IDs with a Step 256 option, since known sounds are all multiples of 256 |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
 ### Where we stopped
