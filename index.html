@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v14</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v15</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -176,10 +176,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   <details>
     <summary>Animations</summary>
     <div class="body">
-      <p style="margin:0;font-size:14px;color:var(--muted)">Test for the mouth and voice lines. Sends animation numbers one at a time. Watch his mouth and listen, then tap Save on the ones that do something. The car answers OK to every number, so you have to watch. Known sounds are all multiples of 256, so try Step 256 too.</p>
+      <p style="margin:0;font-size:14px;color:var(--muted)">Test for the mouth and voice lines. Sends animation numbers one at a time. Watch his mouth and listen, then tap Save on the ones that do something. The car answers OK to every number, so you have to watch. Known sounds are all multiples of 256, so try Step 256 too. If he freezes, tap Idle moves On. If the car reports that an animation finished, the log says so.</p>
       <div class="row"><label class="opt">Animation # <input type="number" id="animIdx" min="0" max="65535" value="0" inputmode="numeric"></label>
         <button id="playAnim" disabled>Play</button></div>
-      <div class="row"><button id="prevAnim" disabled>&lsaquo; Prev</button><button id="nextAnim" disabled>Next &rsaquo;</button><button id="saveAnim" disabled>Save</button></div>
+      <div class="row"><button id="prevAnim" disabled>&lsaquo; Prev</button><button id="nextAnim" disabled>Next &rsaquo;</button><button id="saveAnim" disabled>Save</button><button id="stopAnim" disabled>Stop</button></div>
+      <div class="row"><span style="font-size:14px;color:var(--muted)">Idle moves</span><button id="idleOn" disabled>On</button><button id="idleOff" disabled>Off</button></div>
       <div class="row"><label class="opt">Send to <select id="animTarget"><option value="">no target</option><option value="17">target 0x11</option><option value="18">target 0x12</option></select></label>
         <label class="opt">Step <select id="animStep"><option value="1">1</option><option value="256" selected>256</option></select></label></div>
       <div class="row"><label class="opt">Scan every <select id="animGap"><option value="1500">1.5 s</option><option value="3000" selected>3 s</option><option value="5000">5 s</option></select></label>
@@ -239,12 +240,15 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     volume: (v) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x1a, cmd: 0x08, payload: [v & 0xff] }),
     // Animatronics "play animation", as R2-D2 and BB-9E use: payload [0x00, id]. Untested on McQueen.
     // IDs are sent as 16 bits, big-endian, like sounds: 0-255 gives [0x00, id].
+    // From spherov2 (Python) Animatronic commands: 0x2b stop animation, 0x2c enable idle animations [0/1].
+    stopAnim: () => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x17, cmd: 0x2b }),
+    idleAnims: (on) => packet({ flags: F_RESP | F_KEEPALIVE, device: 0x17, cmd: 0x2c, payload: [on ? 1 : 0] }),
     animation: (id, target) => packet({ flags: F_RESP | F_KEEPALIVE, target: target || undefined, device: 0x17, cmd: 0x05, payload: [(id >> 8) & 0xff, id & 0xff] }),
   };
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 14;
+  const VERSION = 15;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -262,8 +266,16 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     const isResp = flags & 0x01;
     const err = isResp ? p[i++] : null;
     const data = p.slice(i, p.length - 1);
-    if (isResp && waiting.has(sq)) { waiting.get(sq)({ device, cmd, err, data }); waiting.delete(sq); }
+    if (isResp && waiting.has(sq)) { waiting.get(sq)({ device, cmd, err, data }); waiting.delete(sq); return; }
+    if (isResp) return;
+    // Messages the car sends by itself. 0x17/0x11 = "animation finished" on other Sphero toys.
+    const h2 = (n) => '0x' + n.toString(16).padStart(2, '0');
+    if (device === 0x17 && cmd === 0x11) {
+      log(`Car: animation finished${lastAnim != null ? ' (last sent: ' + lastAnim + ')' : ''}${data.length ? ' data ' + hex(data) : ''}`);
+      if (lastAnim != null && typeof markFinished === 'function') markFinished(lastAnim);
+    } else log(`Car says: device ${h2(device)} command ${h2(cmd)}${data.length ? ' data ' + hex(data) : ''}`);
   }
+  let lastAnim = null, markFinished = null;
   function request(pkt, ms = 800) {
     return new Promise((resolve) => {
       const t = setTimeout(() => { waiting.delete(pkt.seq); resolve(null); }, ms);
@@ -294,7 +306,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -523,12 +535,23 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     $('animIdx').value = n;
     if (sleeping) { sleeping = false; await power('wake'); }
     const t = parseInt($('animTarget').value, 10) || null;
+    lastAnim = n;
     const r = await request(cmds.animation(n, t));
     const res = r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply';
     $('animReply').textContent = `animation ${n}: ${res}`;
     log(`Animation ${n} (${t ? 'target 0x' + t.toString(16) : 'no target'}): ${res}`);
   }
   $('playAnim').addEventListener('click', () => playAnim(animNum()));
+  markFinished = (n) => { $('animReply').textContent = `animation ${n}: finished (the car says it played something)`; };
+  $('stopAnim').addEventListener('click', async () => {
+    stopAnimScan();
+    const r = await request(cmds.stopAnim());
+    log(`Stop animation: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+  });
+  for (const [id, on] of [['idleOn', true], ['idleOff', false]]) $(id).addEventListener('click', async () => {
+    const r = await request(cmds.idleAnims(on));
+    log(`Idle moves ${on ? 'on' : 'off'}: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+  });
   $('nextAnim').addEventListener('click', () => playAnim((animNum() + animStep()) % 65536));
   $('prevAnim').addEventListener('click', () => playAnim((animNum() + 65536 - animStep()) % 65536));
   let animTimer = null;

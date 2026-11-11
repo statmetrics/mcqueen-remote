@@ -27,7 +27,9 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const anim = arr(__mcq.cmds.animation(5));
     __mcq.resetSeq(0);
     const anim256 = arr(__mcq.cmds.animation(256));
-    return { drive, escaped, sound, sleep, anim, anim256 };
+    __mcq.resetSeq(0);
+    const idleOn = arr(__mcq.cmds.idleAnims(true));
+    return { drive, escaped, sound, sleep, anim, anim256, idleOn };
   });
 
   const checks = [
@@ -36,6 +38,7 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     ['sound 256 is 16-bit big-endian', hex(got.sound), '8d 0a 1a 07 00 01 00 00 d3 d8'],
     ['sleep has no target', hex(got.sleep), '8d 02 13 01 00 e9 d8'],
     ['animation 5 is [0x00, id]', hex(got.anim), '8d 0a 17 05 00 00 05 d4 d8'],
+    ['idle animations on', hex(got.idleOn), '8d 0a 17 2c 00 01 b1 d8'],
     ['animation 256 is 16-bit big-endian (checksum d8 escaped)', hex(got.anim256), '8d 0a 17 05 00 01 00 ab 50 d8'],
   ];
   let failed = errors.length > 0;

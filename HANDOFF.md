@@ -25,7 +25,7 @@ This project replaces the app with a single web page that drives the car directl
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
 | Sleep | The sleep command (no target) returns OK, but he freezes his eyes and later shuts off without his "power nap" line. Version 14's Nap button sends nothing at all, so his own idle timer can run out and he naps normally (untested). The command is in Experiments as "Sleep now" |
-| Mouth movement / animations | Version 12 adds an Animations test section (Play, Prev, Next, Scan, Save, choice of target). Tested 0–67 with no target: the car answers OK to all, nothing visible happened. Version 13 sends 16-bit IDs with a Step 256 option, since known sounds are all multiples of 256 |
+| Mouth movement / animations | Animation 0 slowed his idle movement and 1 stopped it (eyes froze). Nothing else visible yet in 0–67. Version 15 adds Idle moves On/Off (`0x17 0x2c [0/1]`), Stop (`0x17 0x2b`), and logs messages the car sends by itself, including "animation finished" (`0x17 0x11`) |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
 ### Where we stopped
@@ -72,6 +72,8 @@ All of this was verified on the real car unless marked otherwise.
 | Play sound | `0x1a` | `0x07` | sound ID, 16-bit big-endian, then a mode byte (`0` = play now) | the car answers OK to any ID |
 | Stop sound | `0x1a` | `0x0a` | none | |
 | Volume | `0x1a` | `0x08` | 0–255 | untested |
+| Stop animation | `0x17` | `0x2b` | none | from spherov2 (Python) |
+| Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python) |
 | Animation | `0x17` | `0x05` | `[0x00, id]` | from other Sphero toys; version 12 has a test section for it |
 
 **Mistakes already fixed**
