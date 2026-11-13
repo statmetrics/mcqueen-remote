@@ -31,7 +31,9 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const idleOn = arr(__mcq.cmds.idleAnims(true));
     __mcq.resetSeq(0);
     const batt = arr(__mcq.cmds.batteryPct());
-    return { drive, escaped, sound, sleep, anim, anim256, idleOn, batt };
+    __mcq.resetSeq(0);
+    const kachow = arr(__mcq.cmds.animation(0x69, 0x12));
+    return { drive, escaped, sound, sleep, anim, anim256, idleOn, batt, kachow };
   });
 
   const checks = [
@@ -40,6 +42,7 @@ const hex = (a) => a.map((b) => b.toString(16).padStart(2, '0')).join(' ');
     ['sound 256 is 16-bit big-endian', hex(got.sound), '8d 0a 1a 07 00 01 00 00 d3 d8'],
     ['sleep has no target', hex(got.sleep), '8d 02 13 01 00 e9 d8'],
     ['animation 5 is [0x00, id]', hex(got.anim), '8d 0a 17 05 00 00 05 d4 d8'],
+    ['Ka-chow is animation 0x69 on target 0x12', hex(got.kachow), '8d 1a 12 17 05 00 00 69 4e d8'],
     ['battery percentage', hex(got.batt), '8d 02 13 10 00 da d8'],
     ['idle animations on', hex(got.idleOn), '8d 0a 17 2c 00 01 b1 d8'],
     ['animation 256 is 16-bit big-endian (checksum d8 escaped)', hex(got.anim256), '8d 0a 17 05 00 01 00 ab 50 d8'],
