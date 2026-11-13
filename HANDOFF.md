@@ -69,6 +69,7 @@ All of this was verified on the real car unless marked otherwise.
 |---|---|---|---|---|
 | Drive (RC) | `0x16` | `0x02` | float32 big-endian steer (−1…1), then float32 speed (−1…1) | flags `0x08` only. Matches byte for byte a packet captured from the official app: `8d 08 16 02 8b bf 72 93 de 00 00 00 00 b2 d8`. Sent every 80 ms while connected |
 | Wake | `0x13` | `0x0d` | none | sent with target `0x11` on connect |
+| Battery % | `0x13` | `0x10` | none | reply: 1 byte percent. Version 20 tries it, then voltage (`0x03`, 16-bit hundredths of a volt) and state (`0x04`); untested |
 | Sleep | `0x13` | `0x01` | none | no target returns OK; see Next steps |
 | Play sound | `0x1a` | `0x07` | sound ID, 16-bit big-endian, then a mode byte (`0` = play now) | the car answers OK to any ID |
 | Stop sound | `0x1a` | `0x0a` | none | |

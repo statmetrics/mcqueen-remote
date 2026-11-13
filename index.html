@@ -109,8 +109,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v19</small></h1>
-    <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v20</small></h1>
+    <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
   <div class="note" id="noBt" hidden>
@@ -166,7 +166,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div id="findStatus" class="readout"></div>
         <div class="row" id="found"></div>
       </div>
-      <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button></div>
+      <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button></div>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div></div>
@@ -231,6 +231,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   const cmds = {
     // Power commands: try with no target first (as Sphero's 2017 toys use), then processor 0x11.
     wake: (target = 0x11) => packet({ flags: F_RESP | F_KEEPALIVE, target: target || undefined, device: 0x13, cmd: 0x0d }),
+    // Battery (spherov2 Python Power commands): 0x10 percentage (1 byte), 0x03 voltage (16-bit, hundredths of a volt),
+    // 0x04 state (0 charged, 1 charging, 2 not charging, 3 OK, 4 low, 5 critical).
+    batteryPct: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x10 }),
+    batteryVolts: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x03 }),
+    batteryState: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x04 }),
     sleep: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x01 }),
     // Same flags the official app uses for driving: keep-alive only, no reply requested.
     driveRc: (steer, speed) => packet({ flags: F_KEEPALIVE, device: 0x16, cmd: 0x02, payload: [...f32(steer), ...f32(speed)] }),
@@ -248,7 +253,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 19;
+  const VERSION = 20;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -306,7 +311,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -359,6 +364,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       for (const id of CTRL_IDS) $(id).disabled = false;
       driveTimer = setInterval(tick, 80);
       keepScreenOn();
+      setTimeout(() => readBattery(true), 1500);
+      battTimer = setInterval(() => readBattery(false), 60000);
     } catch (e) {
       log('Error: ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : e) + (String(e && e.message) === '2' ? ' (picker closed with no car chosen; is he asleep?)' : ''));
       if (e && e.name === 'NotFoundError') setStatus('off', 'No car picked. Is it switched on?');
@@ -381,7 +388,34 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   function releaseScreen() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
   document.addEventListener('visibilitychange', () => { if (!document.hidden && connected) keepScreenOn(); });
 
+  // ---- Battery ----
+  const BATT_STATES = ['charged', 'charging', 'not charging', 'OK', 'low', 'critical'];
+  let battTimer = null, battWay = null; // battWay remembers which command and target worked
+  async function readBattery(verbose) {
+    if (!connected || sleeping) return;
+    const tries = battWay ? [battWay] : [];
+    for (const kind of ['batteryPct', 'batteryVolts', 'batteryState']) for (const t of [null, 0x11]) tries.push({ kind, t });
+    const parts = {};
+    for (const w of tries) {
+      if (parts[w.kind] != null) continue;
+      const r = await request(cmds[w.kind](w.t));
+      const ok = r && r.err === 0 && r.data.length > 0;
+      if (verbose) log(`Battery ${w.kind.slice(7).toLowerCase()} (${w.t ? 'target 0x11' : 'no target'}): ${!r ? 'no reply' : r.err ? (ERRS[r.err] || 'code ' + r.err) : 'data ' + hex(r.data)}`);
+      if (!ok) continue;
+      if (w.kind === 'batteryPct') parts.batteryPct = r.data[0] + '%';
+      if (w.kind === 'batteryVolts') parts.batteryVolts = (((r.data[0] << 8) | (r.data[1] || 0)) / 100).toFixed(2) + ' V';
+      if (w.kind === 'batteryState') parts.batteryState = BATT_STATES[r.data[0]] || 'state ' + r.data[0];
+      if (!battWay) battWay = w;
+      if (w === battWay && !verbose) break; // routine refresh: one command is enough
+    }
+    const text = parts.batteryPct || parts.batteryVolts || parts.batteryState;
+    $('battery').textContent = text ? '· battery ' + [parts.batteryPct, parts.batteryVolts, parts.batteryState].filter(Boolean).join(' · ') : '';
+    if (verbose && !text) log('Battery: the car did not report a level');
+  }
+  $('battBtn').addEventListener('click', () => readBattery(true));
+
   function cleanup() {
+    clearInterval(battTimer); battTimer = null; $('battery').textContent = '';
     releaseScreen();
     clearInterval(driveTimer); driveTimer = null; connected = false; chApi = null; busy = false;
     $('connect').disabled = !navigator.bluetooth;
