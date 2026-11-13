@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v17</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v18</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -248,7 +248,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 17;
+  const VERSION = 18;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -358,6 +358,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       $('connect').disabled = true;
       for (const id of CTRL_IDS) $(id).disabled = false;
       driveTimer = setInterval(tick, 80);
+      keepScreenOn();
     } catch (e) {
       log('Error: ' + (e && e.message ? e.message : e));
       if (e && e.name === 'NotFoundError') setStatus('off', 'No car picked. Is it switched on?');
@@ -367,7 +368,21 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
   }
 
+  // Keep the screen on while connected: if the phone locks, the page stops sending and he dozes off in about a minute.
+  let wakeLock = null;
+  async function keepScreenOn() {
+    if (!('wakeLock' in navigator)) { log('Screen lock: this browser cannot keep the screen on. Set Auto-Lock to Never while playing.'); return; }
+    try {
+      if (wakeLock && !wakeLock.released) return;
+      wakeLock = await navigator.wakeLock.request('screen');
+      log('Screen will stay on while connected');
+    } catch (e) { log('Screen lock: could not keep the screen on (' + (e && e.message ? e.message : e) + ')'); }
+  }
+  function releaseScreen() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && connected) keepScreenOn(); });
+
   function cleanup() {
+    releaseScreen();
     clearInterval(driveTimer); driveTimer = null; connected = false; chApi = null; busy = false;
     $('connect').disabled = !navigator.bluetooth;
     for (const id of CTRL_IDS) $(id).disabled = true;
