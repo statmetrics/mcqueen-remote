@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v31</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v32</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -133,6 +133,15 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     </div>
     <div class="pad" id="throttle" aria-label="Throttle"><span class="label">Gas</span><div class="fill"></div><div class="knob"></div></div>
   </div>
+
+  <details open>
+    <summary>Voice lines</summary>
+    <div class="body">
+      <p style="margin:0;font-size:14px;color:var(--muted)">His real voice lines with mouth and body moves. Names marked * come from the French app, so the English words may differ a little.</p>
+      <div class="row" id="voiceBoard"></div>
+      <div class="row"><button id="voiceStop">Stop</button></div>
+    </div>
+  </details>
 
   <details open>
     <summary>Settings</summary>
@@ -183,7 +192,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <button id="playAnim" disabled>Play</button></div>
       <div class="row"><button id="prevAnim" disabled>&lsaquo; Prev</button><button id="nextAnim" disabled>Next &rsaquo;</button><button id="saveAnim" disabled>Save</button><button id="stopAnim" disabled>Stop</button></div>
       <div class="row"><span style="font-size:14px;color:var(--muted)">Idle moves</span><button id="idleOn" disabled>On</button><button id="idleOff" disabled>Off</button></div>
-      <div class="row"><label class="opt">Send to <select id="animTarget"><option value="">none</option><option value="17">0x11</option><option value="18">0x12</option></select></label>
+      <div class="row"><label class="opt">Send to <select id="animTarget"><option value="">none</option><option value="17">0x11</option><option value="18" selected>0x12</option></select></label>
         <label class="opt">Step <select id="animStep"><option value="1">1</option><option value="256" selected>256</option></select></label></div>
       <div class="row"><label class="opt">Scan every <select id="animGap"><option value="1500">1.5 s</option><option value="3000" selected>3 s</option><option value="5000">5 s</option></select></label>
         <button id="animScanBtn" disabled>Scan</button></div>
@@ -261,7 +270,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 31;
+  const VERSION = 32;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -608,6 +617,40 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     send(cmds.stopSound());
     log(`Finder ${from}–${to}: ` + Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', '));
     finding = false; $('findBtn').textContent = 'Find';
+  });
+
+  // ---- Voice lines: McQueen animation IDs from pysphero (MIT), LMQAnimation. Played with animatronics 0x17/0x05,
+  // 16-bit ID, target 0x12. The car answers with 0x17/0x11 "finished" carrying the same ID.
+  const VOICE_LINES = [
+    [0x69, 'Ka-chow!'], [0x5e, 'I am speed'], [0x24, 'Oh yeah, Lightning is ready'], [0x3f, 'Look out folks, Lightning McQueen is back'],
+    [0x7e, "I'm Lightning McQueen *"], [0x8d, 'Oh yeah, Lightning McQueen is in the house *'], [0x12d, "I'm a precision instrument of speed and aerodynamics"],
+    [0x41, 'I am so ready for the Piston Cup'], [0x66, 'Game on'], [0x67, 'Next up, Lightning McQueen'], [0x64, 'The crowd loves us'],
+    [0x7b, "Pay attention, this is how it's done"], [0x107, 'Watch this, I call it The Wave'], [0x111, 'Groovin\''], [0x112, 'Watch me now'],
+    [0x36, "Hey, c'mon, let's go"], [0xa0, 'Here I go'], [0x59, 'Crank the acceleration'], [0x5f, 'Focus, focus'],
+    [0x4e, 'Look left, look right, nothing but open road'], [0x54, 'The road is calling my name'], [0x39, 'I love your garage'],
+    [0x52, 'Filmore makes the best organic fuel'], [0x58, "Flo's V8 Cafe serves the best quart of oil"],
+    [0x12c, "I'm super fast *"], [0xf5, "I've never been so ready *"], [0x128, 'Being a champion is teamwork *'], [0x126, "Alright, let's go, I'll go in front of the camera *"],
+    [0x26, 'Well done *'], [0xce, "You've got this, my friend *"], [0xcd, 'Seriously, we should try something else *'], [0xf6, 'Ah, what memories *'], [0xfe, 'I love it when they call me sweetheart *'],
+    [0x28, 'Cool'], [0x2b, 'Thank you'], [0x32, 'This is amazing'], [0x82, 'Wow'], [0x33, 'Whoa'], [0x6c, 'Yes, woo!'], [0xa2, 'Woo-hoo'],
+    [0x9f, 'Hey'], [0x12f, "Ahh, c'mon"], [0xdc, 'Ahhh'], [0xf2, 'Gasp'],
+    [0x130, 'Engine rev'], [0x131, 'Engine start'], [0x132, 'Engine idle (loops; tap Stop)'],
+  ];
+  async function playVoice(id, name) {
+    if (!connected) { log('Connect first'); return; }
+    if (sleeping) { sleeping = false; await power('wake'); }
+    lastAnim = id;
+    const r = await request(cmds.animation(id, 0x12));
+    log(`Voice "${name}" (${id}): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+  }
+  for (const [id, name] of VOICE_LINES) {
+    const b = document.createElement('button'); b.textContent = name; b.style.fontSize = '14px'; b.style.padding = '8px 12px';
+    b.addEventListener('click', () => playVoice(id, name));
+    $('voiceBoard').appendChild(b);
+  }
+  $('voiceStop').addEventListener('click', async () => {
+    if (!connected) return;
+    const r = await request(cmds.stopAnim(0x12));
+    log(`Stop (target 0x12): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
   });
 
   // ---- Animations (device 0x17, command 0x05) ----

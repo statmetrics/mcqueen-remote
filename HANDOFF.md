@@ -31,6 +31,7 @@ This project replaces the app with a single web page that drives the car directl
 | Animation IDs | The car sends `0x17 0x11` "animation finished" with data `[hi, lo]` for its own idle moves: seen 187 (`00 bb`) and 188 (`00 bc`). So real IDs are in the low hundreds. Version 23 logs the ID and auto-saves every reported one |
 | Copy list | Version 25: a Copy list button (in Experiments and Animations) copies every saved sound and animation as "N = " lines for the owner to name and paste back. Next: build the named ones into the page as a soundboard |
 | Voice lines and mouth | Sounds are his voice lines. 4096 = "Ka-chow!" with mouth, right tire lift and body tilt (worked on the charger; later silent off the charger though it answered OK). 256 = voice only, no movement. Theory: the 80 ms "speed 0" drive stream blocks the move and he skips the line, so version 27 pauses the stream for 5 s after each sound or animation. That didn't help (4096 still silent off the charger, 256 fine), so version 28 sends drive packets only while a pad is held, plus 5 stops after release. That didn't help either. Since the v25 session (after a sleep and charger wake around 8:10 pm, 2026-11-12) he also stopped his usual engine rumble on connect, on or off the charger, while voice-only 256 still plays. His state changed, cause unknown. Version 29 added a Full restart button (version 10's deep sleep). On 2026-11-12 it put him into deep sleep and he did not wake on the charger right away (no headlight pulsing); left on the charger. He later woke when version 30 connected, and **the engine rumble on connect was back**, so the deep sleep did reset his state. Version 30 removed the button. **Never send sleep to targets 0x11/0x12.** After the reset, 4096 was still silent on and off the charger (256 fine). Ka-chow only ever worked while the page streamed drive updates continuously (versions 23–24), so version 31 makes that the default again; the version 27–28 quiet behaviour is a Settings checkbox, "Quiet when parked". Version 24 adds Step 256 to the sound Scan to find more |
+| Voice lines soundboard | Version 32: a "Voice lines" panel with 47 named buttons from pysphero's McQueen animation list (Ka-chow = `0x69`, engine rev/start/idle = `0x130`/`0x131`/`0x132`), sent as animatronics play on **target 0x12**. Untested on the car yet |
 | Mouth movement / animations | Animation 0 slowed his idle movement and 1 stopped it (eyes froze). Nothing else visible yet in 0–67. Version 15 adds Idle moves On/Off (`0x17 0x2c [0/1]`), Stop (`0x17 0x2b`), and logs messages the car sends by itself, including "animation finished" (`0x17 0x11`) |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
@@ -103,6 +104,14 @@ All of this was verified on the real car unless marked otherwise.
 3. Commit and push to `main`. GitHub Pages updates in about 1–3 minutes.
 4. The owner opens `https://statmetrics.github.io/mcqueen-remote/?v=N` in Bluefy. The `?v=N` gets around Bluefy's cache.
 5. When something fails, ask for a screenshot of the **Connection log**. It shows each command and the car's reply.
+
+## McQueen animatronics (from pysphero, MIT)
+
+pysphero (https://github.com/EnotYoyo/pysphero, `device_api/animatronics.py`) has McQueen-specific findings:
+- Play animation: device `0x17`, command `0x05`, 16-bit big-endian ID, **target `0x12`**. The car answers `0x17 0x11` with the same ID when done.
+- `LMQAnimation` IDs (voice line plus mouth and body moves), e.g. Ka-chow `0x69`, I am speed `0x5e`, Engine rev `0x130`, Engine start `0x131`, Engine idle loop `0x132`. The full list is in `index.html` (`VOICE_LINES`). Names ending in `*` were captured from the French app.
+- McQueen animatronics commands: `0x01` animate eyes, `0x03` animate suspension, `0x04` animate mouth, `0x05` execute animation, `0x07` capacitive touch indication, `0x0a` enable idle animation, `0x0b` enable user drive, `0x12` animate steering, `0x2b` stop animation. Payloads for 0x01/0x03/0x04/0x0a/0x0b are unknown. Note that idle animation on McQueen is `0x0a`, not `0x2c`.
+- Power: battery state `0x04`, battery state changed notification `0x06`.
 
 ## Sources
 - spherov2.js (TypeScript), which has a Lightning McQueen class: https://github.com/igbopie/spherov2.js. This is where the Bluetooth details, the unlock string and the drive command came from.
