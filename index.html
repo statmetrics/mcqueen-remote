@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v29</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v30</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -167,8 +167,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div id="findStatus" class="readout"></div>
         <div class="row" id="found"></div>
       </div>
-      <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button><button id="restartBtn" disabled>Full restart</button></div>
-      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Full restart puts him into the deep sleep from version 10 (sleep to no target, 0x11 and 0x12, then disconnect). Only the charger wakes him: unplug and replug it. Use it if he stops rumbling or doing Ka-chow.</p>
+      <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button></div>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div><div class="row" style="margin-top:8px"><button class="copyList">Copy list</button></div></div>
@@ -261,7 +260,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 29;
+  const VERSION = 30;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -322,7 +321,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'restartBtn'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -707,16 +706,6 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     log('Sleep: disconnecting; he switches himself off in about a minute');
     if (device && device.gatt.connected) device.gatt.disconnect();
     setStatus('off', 'Disconnected. He sleeps in about a minute; replug the charger to wake him.');
-  });
-  $('restartBtn').addEventListener('click', async () => {
-    stopAll(); await new Promise((r) => setTimeout(r, 200));
-    sleeping = true; stopScan(); stopAnimScan();
-    for (const t of [null, 0x11, 0x12]) {
-      const r = await request(cmds.sleep(t));
-      log(`Full restart: sleep (${t ? 'target 0x' + t.toString(16) : 'no target'}): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
-    }
-    setTimeout(() => { if (device && device.gatt.connected) device.gatt.disconnect(); }, 3000);
-    setStatus('busy', 'Full restart: he goes into deep sleep. Unplug and replug the charger to wake him.');
   });
   $('sleepNowBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
