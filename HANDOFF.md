@@ -77,7 +77,7 @@ All of this was verified on the real car unless marked otherwise.
 | Stop sound | `0x1a` | `0x0a` | none | |
 | Volume | `0x1a` | `0x08` | 0–255 | untested |
 | Stop animation | `0x17` | `0x2b` | none | from spherov2 (Python) |
-| Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python). No target: car replies "unknown command" (first rejection seen). Version 16 lets it go to 0x11/0x12 |
+| Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python). No target: car replies "unknown command" (first rejection seen). Also "unknown command" on target 0x12. 0x11 not yet tried |
 | Animation | `0x17` | `0x05` | `[0x00, id]` | from other Sphero toys; version 12 has a test section for it |
 
 **Mistakes already fixed**
