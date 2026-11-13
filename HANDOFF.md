@@ -24,6 +24,7 @@ This project replaces the app with a single web page that drives the car directl
 | Sounds | Partly working. Known sound IDs: 256, 2560, 4096, 4352, 4864, 6144, 7168 |
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
+| Driving while charging | He won't drive while on the charger (by design); unplug him to drive |
 | Battery readout | Works (version 20): shown next to the connection status, refreshed every minute |
 | Phone locking | If the screen locks, Bluefy pauses the page, the drive updates stop, and he switches off in about a minute. Version 18 asks for a screen wake lock while connected (logged; untested whether Bluefy supports it) |
 | Sleep | Works (version 17): the button stops driving and disconnects. About 1 minute later he switches himself off, without his "power nap" line, and he still shows up in Bluetooth. While connected he never dozes off, even when the sleep command (no target) answers OK. The command is still in Experiments as "Sleep now" |
