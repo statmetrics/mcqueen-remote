@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v21</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v22</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -122,7 +122,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     <button class="primary" id="connect">Connect car</button>
     <button id="disconnect" disabled>Disconnect</button>
     <button id="wakeBtn" disabled>Wake</button>
-    <button id="sleepBtn" disabled>Sleep</button>
+    <button id="sleepBtn" disabled>Sleep (charger wakes)</button>
   </div>
 
   <div class="pads">
@@ -253,7 +253,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 21;
+  const VERSION = 22;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -648,7 +648,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     await new Promise((r) => setTimeout(r, 200));
     log('Sleep: disconnecting; he switches himself off in about a minute');
     if (device && device.gatt.connected) device.gatt.disconnect();
-    setStatus('off', 'Disconnected. He will switch off in about a minute.');
+    setStatus('off', 'Disconnected. He sleeps in about a minute; replug the charger to wake him.');
   });
   $('sleepNowBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
