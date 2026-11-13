@@ -28,6 +28,7 @@ This project replaces the app with a single web page that drives the car directl
 | Battery readout | Works (version 20): shown next to the connection status, refreshed every minute |
 | Phone locking | If the screen locks, Bluefy pauses the page, the drive updates stop, and he switches off in about a minute. Version 18 asks for a screen wake lock while connected (logged; untested whether Bluefy supports it) |
 | Sleep | Any disconnect (Sleep button, phone lock, page reload) makes him sleep about 1 minute later, and then he does not show up in Bluetooth. Unplugging and replugging the charger wakes him; while asleep on the charger his headlights pulse. The one time he showed up after Sleep, he had probably been on the charger. Version 22 labels the button "Sleep (charger wakes)". While connected he never dozes off, even when the sleep command answers OK |
+| Animation IDs | The car sends `0x17 0x11` "animation finished" with data `[hi, lo]` for its own idle moves: seen 187 (`00 bb`) and 188 (`00 bc`). So real IDs are in the low hundreds. Version 23 logs the ID and auto-saves every reported one |
 | Mouth movement / animations | Animation 0 slowed his idle movement and 1 stopped it (eyes froze). Nothing else visible yet in 0–67. Version 15 adds Idle moves On/Off (`0x17 0x2c [0/1]`), Stop (`0x17 0x2b`), and logs messages the car sends by itself, including "animation finished" (`0x17 0x11`) |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
@@ -77,7 +78,7 @@ All of this was verified on the real car unless marked otherwise.
 | Stop sound | `0x1a` | `0x0a` | none | |
 | Volume | `0x1a` | `0x08` | 0–255 | untested |
 | Stop animation | `0x17` | `0x2b` | none | from spherov2 (Python) |
-| Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python). No target: car replies "unknown command" (first rejection seen). Also "unknown command" on target 0x12. 0x11 not yet tried |
+| Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python). No target: car replies "unknown command" (first rejection seen). Also "unknown command" on targets 0x11 and 0x12: McQueen doesn't have it |
 | Animation | `0x17` | `0x05` | `[0x00, id]` | from other Sphero toys; version 12 has a test section for it |
 
 **Mistakes already fixed**
