@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v22</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v23</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -176,7 +176,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   <details>
     <summary>Animations</summary>
     <div class="body">
-      <p style="margin:0;font-size:14px;color:var(--muted)">Test for the mouth and voice lines. Sends animation numbers one at a time. Watch his mouth and listen, then tap Save on the ones that do something. The car answers OK to every number, so you have to watch. Known sounds are all multiples of 256, so try Step 256 too. If he freezes, tap Idle moves On. Send to also applies to Stop and Idle moves. If the car reports that an animation finished, the log says so.</p>
+      <p style="margin:0;font-size:14px;color:var(--muted)">Test for the mouth and voice lines. Sends animation numbers one at a time. Watch his mouth and listen, then tap Save on the ones that do something. The car answers OK to every number, so you have to watch. Known sounds are all multiples of 256, so try Step 256 too. The car reports each animation it finishes, including his own idle moves (he reported 187 and 188), and those numbers are saved below automatically.</p>
       <div class="row"><label class="opt">Animation # <input type="number" id="animIdx" min="0" max="65535" value="0" inputmode="numeric"></label>
         <button id="playAnim" disabled>Play</button></div>
       <div class="row"><button id="prevAnim" disabled>&lsaquo; Prev</button><button id="nextAnim" disabled>Next &rsaquo;</button><button id="saveAnim" disabled>Save</button><button id="stopAnim" disabled>Stop</button></div>
@@ -253,7 +253,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 22;
+  const VERSION = 23;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -276,8 +276,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     // Messages the car sends by itself. 0x17/0x11 = "animation finished" on other Sphero toys.
     const h2 = (n) => '0x' + n.toString(16).padStart(2, '0');
     if (device === 0x17 && cmd === 0x11) {
-      log(`Car: animation finished${lastAnim != null ? ' (last sent: ' + lastAnim + ')' : ''}${data.length ? ' data ' + hex(data) : ''}`);
-      if (lastAnim != null && typeof markFinished === 'function') markFinished(lastAnim);
+      // Data is [hi, lo] of the animation ID, the same layout as the play command. He also reports his own idle animations.
+      const id = data.length >= 2 ? (data[0] << 8) | data[1] : data.length ? data[0] : null;
+      const mine = id != null && id === lastAnim;
+      log(`Car: animation ${id != null ? id : '?'} finished${mine ? ' (the one we sent)' : ' (his own idle move)'}`);
+      if (id != null && typeof markFinished === 'function') markFinished(id, mine);
     } else log(`Car says: device ${h2(device)} command ${h2(cmd)}${data.length ? ' data ' + hex(data) : ''}`);
   }
   let lastAnim = null, markFinished = null;
@@ -365,6 +368,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       driveTimer = setInterval(tick, 80);
       keepScreenOn();
       setTimeout(() => readBattery(true), 1500);
+      setTimeout(() => { if (!battWay) readBattery(true); }, 8000); // he may not answer until he is fully awake
       battTimer = setInterval(() => readBattery(false), 60000);
     } catch (e) {
       log('Error: ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : e) + (String(e && e.message) === '2' ? ' (picker closed with no car chosen; is he asleep?)' : ''));
@@ -594,7 +598,10 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     log(`Animation ${n} (${t ? 'target 0x' + t.toString(16) : 'no target'}): ${res}`);
   }
   $('playAnim').addEventListener('click', () => playAnim(animNum()));
-  markFinished = (n) => { $('animReply').textContent = `animation ${n}: finished (the car says it played something)`; };
+  markFinished = (n, mine) => {
+    if (mine) $('animReply').textContent = `animation ${n}: finished (the car says it played)`;
+    if (!savedAnims.includes(n)) { savedAnims.push(n); savedAnims.sort((x, y) => x - y); renderAnims(); }
+  };
   $('stopAnim').addEventListener('click', async () => {
     stopAnimScan();
     const t = animTarget();
