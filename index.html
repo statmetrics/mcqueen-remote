@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v24</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v25</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -170,7 +170,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button></div>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
-      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div></div>
+      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div><div class="row" style="margin-top:8px"><button class="copyList">Copy list</button></div></div>
     </div>
   </details>
 
@@ -187,9 +187,15 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       <div class="row"><label class="opt">Scan every <select id="animGap"><option value="1500">1.5 s</option><option value="3000" selected>3 s</option><option value="5000">5 s</option></select></label>
         <button id="animScanBtn" disabled>Scan</button></div>
       <div id="animReply" class="readout"></div>
-      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved animations (tap to play)</div><div class="row" id="savedAnims"></div><div class="row" style="margin-top:8px"><button id="clearAnims">Clear saved</button></div></div>
+      <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved animations (tap to play)</div><div class="row" id="savedAnims"></div><div class="row" style="margin-top:8px"><button id="clearAnims">Clear saved</button><button class="copyList">Copy list</button></div></div>
     </div>
   </details>
+
+  <div id="copyBox" hidden style="display:flex;flex-direction:column;gap:8px">
+    <div id="copyMsg" style="font-size:14px;color:var(--muted)"></div>
+    <textarea id="copyText" readonly rows="8" style="width:100%;box-sizing:border-box;font-family:var(--mono);font-size:13px;background:#111;color:inherit;border:1px solid var(--line);border-radius:10px;padding:10px"></textarea>
+    <div class="row"><button id="copyClose">Close</button></div>
+  </div>
 
   <details>
     <summary>Connection log</summary>
@@ -254,7 +260,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 24;
+  const VERSION = 25;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -650,6 +656,26 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('saveAnim').addEventListener('click', () => { const n = animNum(); if (!savedAnims.includes(n)) { savedAnims.push(n); savedAnims.sort((x, y) => x - y); renderAnims(); } });
   $('clearAnims').addEventListener('click', () => { savedAnims = []; renderAnims(); });
   renderAnims();
+
+  // ---- Copy list: everything saved, ready to paste into a message (add a name after each "=") ----
+  async function copyList() {
+    const lines = ['McQueen Remote saved list (v' + VERSION + ')', '', 'Sounds:'];
+    for (const n of saved) lines.push(`  ${n} = `);
+    if (!saved.length) lines.push('  (none)');
+    lines.push('', 'Animations:');
+    for (const n of savedAnims) lines.push(`  ${n} = `);
+    if (!savedAnims.length) lines.push('  (none)');
+    const text = lines.join('\n');
+    $('copyText').value = text; $('copyBox').hidden = false;
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {}
+    if (!ok) { try { $('copyText').focus(); $('copyText').select(); ok = document.execCommand('copy'); } catch (e) {} }
+    $('copyMsg').textContent = ok ? 'Copied. Paste it into a message, and add a name after each "=" if you like.'
+                                  : 'Could not copy automatically. Press and hold the text below, Select All, then Copy.';
+    $('copyBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  for (const b of document.querySelectorAll('.copyList')) b.addEventListener('click', copyList);
+  $('copyClose').addEventListener('click', () => { $('copyBox').hidden = true; });
 
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
