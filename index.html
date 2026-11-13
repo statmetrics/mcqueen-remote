@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v18</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v19</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -248,7 +248,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 18;
+  const VERSION = 19;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -360,7 +360,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       driveTimer = setInterval(tick, 80);
       keepScreenOn();
     } catch (e) {
-      log('Error: ' + (e && e.message ? e.message : e));
+      log('Error: ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : e) + (String(e && e.message) === '2' ? ' (picker closed with no car chosen; is he asleep?)' : ''));
       if (e && e.name === 'NotFoundError') setStatus('off', 'No car picked. Is it switched on?');
       else if (e && e.name === 'SecurityError') { setStatus('err', 'Bluetooth blocked on this page'); $('noBt').hidden = false; }
       else setStatus('err', 'Connection failed. See log.');
