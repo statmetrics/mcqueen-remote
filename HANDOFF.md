@@ -107,7 +107,7 @@ All of this was verified on the real car unless marked otherwise.
 
 ## McQueen animatronics (from pysphero, MIT)
 
-pysphero (https://github.com/EnotYoyo/pysphero, `device_api/animatronics.py`) has McQueen-specific findings:
+pysphero (https://github.com/EnotYoyo/pysphero, `device_api/animatronics.py`; a copy is in `docs/reference/pysphero/`) has McQueen-specific findings:
 - Play animation: device `0x17`, command `0x05`, 16-bit big-endian ID, **target `0x12`**. The car answers `0x17 0x11` with the same ID when done.
 - `LMQAnimation` IDs (voice line plus mouth and body moves), e.g. Ka-chow `0x69`, I am speed `0x5e`, Engine rev `0x130`, Engine start `0x131`, Engine idle loop `0x132`. The full list is in `index.html` (`VOICE_LINES`). Names ending in `*` were captured from the French app.
 - McQueen animatronics commands: `0x01` animate eyes, `0x03` animate suspension, `0x04` animate mouth, `0x05` execute animation, `0x07` capacitive touch indication, `0x0a` enable idle animation, `0x0b` enable user drive, `0x12` animate steering, `0x2b` stop animation. Payloads for 0x01/0x03/0x04/0x0a/0x0b are unknown. Note that idle animation on McQueen is `0x0a`, not `0x2c`.
