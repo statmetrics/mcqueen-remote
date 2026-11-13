@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v30</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v31</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -144,6 +144,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">How far the wheels turn. Over 100% is a test: the car may turn tighter, or may ignore it.</p>
       <label class="opt"><input type="checkbox" id="flipSteer"> Flip steering (if left turns right)</label>
       <label class="opt"><input type="checkbox" id="flipGas"> Flip gas (if forward goes backward)</label>
+      <label class="opt"><input type="checkbox" id="quietIdle"> Quiet when parked (send drive updates only while a pad is touched; test)</label>
       <label class="opt"><input type="checkbox" id="showAll"> Show all Bluetooth devices when connecting (if the car isn't listed)</label>
     </div>
   </details>
@@ -260,7 +261,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 30;
+  const VERSION = 31;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -457,10 +458,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   async function tick() {
     const { steer, speed } = outputs();
     if (!connected || busy || sleeping) return;
-    if (Date.now() < quietUntil && steer === 0 && speed === 0) return;
+    const quiet = $('quietIdle').checked; // off = versions 1-26 behaviour (Ka-chow worked then)
+    if (quiet && Date.now() < quietUntil && steer === 0 && speed === 0) return;
     // Only stream while driving: after the pads are released, send a few stops, then go quiet so he is not
     // held in remote-control mode (that may block his own moves, like the tire lift in "Ka-chow").
-    if (steer === 0 && speed === 0) { if (idleStops >= 5) return; idleStops++; } else idleStops = 0;
+    if (quiet && steer === 0 && speed === 0) { if (idleStops >= 5) return; idleStops++; } else idleStops = 0;
     busy = true;
     try { await write(chApi, cmds.driveRc(steer, speed)); sent++; $('rSent').textContent = `packets ${sent}`; }
     catch (e) { log('Drive write failed: ' + e.message); }
@@ -543,7 +545,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   // Log the car's reply to each sound so a silent sound can be told from a refused one.
   async function playNum(n) {
     $('soundIdx').value = n;
-    stopAll(); letHimMove();
+    if ($('quietIdle').checked) { stopAll(); letHimMove(); }
     const r = await request(cmds.sound(n));
     log(`Sound ${n}: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
   }
@@ -618,7 +620,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     if (sleeping) { sleeping = false; await power('wake'); }
     const t = parseInt($('animTarget').value, 10) || null;
     lastAnim = n;
-    stopAll(); letHimMove();
+    if ($('quietIdle').checked) { stopAll(); letHimMove(); }
     const r = await request(cmds.animation(n, t));
     const res = r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply';
     $('animReply').textContent = `animation ${n}: ${res}`;
@@ -718,7 +720,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     const upd = () => ($(id + 'V').textContent = $(id).value + '%');
     $(id).addEventListener('input', upd); upd();
   }
-  try { for (const id of ['maxSpeed', 'maxSteer', 'steerSens', 'flipSteer', 'flipGas']) {
+  try { for (const id of ['maxSpeed', 'maxSteer', 'steerSens', 'flipSteer', 'flipGas', 'quietIdle']) {
     const v = localStorage.getItem('mcq-' + id); if (v != null) { const el = $(id); el.type === 'checkbox' ? (el.checked = v === '1') : (el.value = v); el.dispatchEvent(new Event('input')); }
     $(id).addEventListener('change', () => { try { const el = $(id); localStorage.setItem('mcq-' + id, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value); } catch (e) {} });
   } } catch (e) {}
