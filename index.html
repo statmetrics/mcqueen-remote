@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v16</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v17</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
   </header>
 
@@ -122,7 +122,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     <button class="primary" id="connect">Connect car</button>
     <button id="disconnect" disabled>Disconnect</button>
     <button id="wakeBtn" disabled>Wake</button>
-    <button id="sleepBtn" disabled>Nap</button>
+    <button id="sleepBtn" disabled>Sleep</button>
   </div>
 
   <div class="pads">
@@ -167,7 +167,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div class="row" id="found"></div>
       </div>
       <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button></div>
-      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. He switches off without his power-nap line. Nap (top) is the gentle way.</p>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div></div>
     </div>
@@ -248,7 +248,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 16;
+  const VERSION = 17;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -373,7 +373,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     for (const id of CTRL_IDS) $(id).disabled = true;
     stopScan(); stopAnimScan();
   }
-  function onDisconnected() { log('Car disconnected'); setStatus('off', 'Disconnected'); cleanup(); }
+  function onDisconnected() { log('Car disconnected'); if (!sleeping) setStatus('off', 'Disconnected'); sleeping = false; cleanup(); }
 
   async function send(data, label) {
     if (!chApi) return;
@@ -590,14 +590,15 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
   $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
   $('wakeBtn').addEventListener('click', async () => { sleeping = false; await power('wake'); setStatus('on', `Connected to ${device && device.name || 'car'}`); });
-  // Sleep = natural nap: stop sending anything so the car's own idle timer runs out and he does his
-  // "power nap" line and closes his eyes. The sleep command (0x13/0x01) switches him off abruptly instead
-  // (eyes freeze, no line), so it is only in Experiments as "Sleep now".
+  // Sleep = let go: stop driving and disconnect. Tested: about a minute later he switches himself off
+  // (no "power nap" line) and stays findable in Bluetooth. While connected he never dozes off, even after
+  // the sleep command, and version 10's targeted sleep commands put him into a sleep only the charger ends.
   $('sleepBtn').addEventListener('click', async () => {
-    stopAll(); await new Promise((r) => setTimeout(r, 200));
-    sleeping = true; stopScan(); stopAnimScan();
-    log('Nap: stopped sending; waiting for his own power nap');
-    setStatus('busy', 'Napping soon: he should doze off by himself. Touch a pad or tap Wake to wake him.');
+    stopAll(); sleeping = true; stopScan(); stopAnimScan();
+    await new Promise((r) => setTimeout(r, 200));
+    log('Sleep: disconnecting; he switches himself off in about a minute');
+    if (device && device.gatt.connected) device.gatt.disconnect();
+    setStatus('off', 'Disconnected. He will switch off in about a minute.');
   });
   $('sleepNowBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));

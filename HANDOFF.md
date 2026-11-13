@@ -24,7 +24,7 @@ This project replaces the app with a single web page that drives the car directl
 | Sounds | Partly working. Known sound IDs: 256, 2560, 4096, 4352, 4864, 6144, 7168 |
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
-| Sleep | The sleep command (no target) returns OK, but he freezes his eyes and later shuts off without his "power nap" line. Version 14's Nap button sends nothing at all, so his own idle timer can run out and he naps normally (untested). The command is in Experiments as "Sleep now" |
+| Sleep | Works (version 17): the button stops driving and disconnects. About 1 minute later he switches himself off, without his "power nap" line, and he still shows up in Bluetooth. While connected he never dozes off, even when the sleep command (no target) answers OK. The command is still in Experiments as "Sleep now" |
 | Mouth movement / animations | Animation 0 slowed his idle movement and 1 stopped it (eyes froze). Nothing else visible yet in 0–67. Version 15 adds Idle moves On/Off (`0x17 0x2c [0/1]`), Stop (`0x17 0x2b`), and logs messages the car sends by itself, including "animation finished" (`0x17 0x11`) |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
