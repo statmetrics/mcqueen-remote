@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v27</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v28</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -260,7 +260,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 27;
+  const VERSION = 28;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -452,12 +452,15 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     return { steer: Math.round(steer * 1000) / 1000 + 0, speed: Math.round(speed * 1000) / 1000 + 0 };
   }
   // After a sound or animation, stop streaming "speed 0" for a few seconds so his own moves (tire lift, tilt) can run.
-  let quietUntil = 0;
+  let quietUntil = 0, idleStops = 0;
   function letHimMove(ms = 5000) { quietUntil = Date.now() + ms; }
   async function tick() {
     const { steer, speed } = outputs();
     if (!connected || busy || sleeping) return;
     if (Date.now() < quietUntil && steer === 0 && speed === 0) return;
+    // Only stream while driving: after the pads are released, send a few stops, then go quiet so he is not
+    // held in remote-control mode (that may block his own moves, like the tire lift in "Ka-chow").
+    if (steer === 0 && speed === 0) { if (idleStops >= 5) return; idleStops++; } else idleStops = 0;
     busy = true;
     try { await write(chApi, cmds.driveRc(steer, speed)); sent++; $('rSent').textContent = `packets ${sent}`; }
     catch (e) { log('Drive write failed: ' + e.message); }
