@@ -99,6 +99,7 @@ All of this was verified on the real car unless marked otherwise.
 - Connection log, and a version label next to the title.
 
 ## How to work on it
+0. **Before guessing or scanning for a new feature, search for existing McQueen work first** (pysphero, Red Thunder Remote, forums). Scanning blind caused a freeze (animation 1), a quiet mode, and a deep sleep, while pysphero already had the Ka-chow ID.
 1. Edit `index.html`, and bump `const VERSION` and the `vN` label so the owner can tell the new version loaded.
 2. Run `node tools/check-packets.js` to confirm the packet encoding still matches the capture from the official app. It needs Playwright (`npm i playwright`, plus a Chromium).
 3. Commit and push to `main`. GitHub Pages updates in about 1–3 minutes.
