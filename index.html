@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v25</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v26</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -260,7 +260,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 25;
+  const VERSION = 26;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -533,7 +533,12 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('stop').addEventListener('click', stopAll);
   // ---- Sounds ----
   const soundNum = () => Math.max(0, Math.min(65535, parseInt($('soundIdx').value, 10) || 0));
-  function playNum(n) { $('soundIdx').value = n; return send(cmds.sound(n), `Sound ${n}`); }
+  // Log the car's reply to each sound so a silent sound can be told from a refused one.
+  async function playNum(n) {
+    $('soundIdx').value = n;
+    const r = await request(cmds.sound(n));
+    log(`Sound ${n}: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+  }
   $('playSound').addEventListener('click', () => playNum(soundNum()));
   const soundStep = () => +$('soundStep').value || 1;
   $('nextSound').addEventListener('click', () => playNum((soundNum() + soundStep()) % 65536));
@@ -678,7 +683,10 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   $('copyClose').addEventListener('click', () => { $('copyBox').hidden = true; });
 
   $('volume').addEventListener('input', () => { $('volumeV').textContent = $('volume').value; });
-  $('volume').addEventListener('change', () => send(cmds.volume(+$('volume').value), 'Volume'));
+  $('volume').addEventListener('change', async () => {
+    const r = await request(cmds.volume(+$('volume').value));
+    log(`Volume ${$('volume').value}: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+  });
   $('wakeBtn').addEventListener('click', async () => { sleeping = false; await power('wake'); setStatus('on', `Connected to ${device && device.name || 'car'}`); });
   // Sleep = let go: stop driving and disconnect. Tested: about a minute later he switches himself off
   // (no "power nap" line) and stays findable in Bluetooth. While connected he never dozes off, even after
