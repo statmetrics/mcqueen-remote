@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v36</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v37</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -122,7 +122,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     <button class="primary" id="connect">Connect car</button>
     <button id="disconnect" disabled>Disconnect</button>
     <button id="wakeBtn" disabled>Wake</button>
-    <button id="sleepBtn" disabled>Sleep (charger wakes)</button>
+    <button id="sleepBtn" disabled>Sleep</button>
   </div>
 
   <div class="pads">
@@ -178,11 +178,9 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div class="row" id="found"></div>
       </div>
       <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button><button id="powerOptBtn" disabled>Power options</button></div>
-      <div class="row"><button id="sleep11Btn" disabled>Sleep test (target 0x11)</button></div>
-      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends soft sleep to target 0x11 only (wake only works on 0x11), then disconnects. May be the deep sleep: wake with a double-tap on his roof, or the charger.</p>
-      <div class="row"><span style="font-size:14px;color:var(--muted)">Double-tap to wake (<span id="dtState">?</span>)</span><button id="dtOn" disabled>On</button><button id="dtOff" disabled>Off</button></div>
-      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Changes a setting stored in the car. Off puts it back the way it was (00 00 00 00). Test: turn it on, tap Sleep, wait until he's asleep, then double-tap his roof.</p>
-      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
+            <div class="row"><span style="font-size:14px;color:var(--muted)">Double-tap to wake (<span id="dtState">?</span>)</span><button id="dtOn" disabled>On</button><button id="dtOff" disabled>Off</button></div>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Changes a setting stored in the car. Off puts it back the way it was (00 00 00 00). Tested: with it on, a double-tap did not wake him from Sleep, so it can stay off. Connect car wakes him.</p>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Sends sleep with no target. Tested: he answers OK but stays awake. The Sleep button at the top sends it to target 0x11, which works.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div><div class="row" style="margin-top:8px"><button class="copyList">Copy list</button></div></div>
     </div>
@@ -279,7 +277,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 36;
+  const VERSION = 37;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -345,7 +343,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn', 'dtOn', 'dtOff', 'sleep11Btn'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn', 'dtOn', 'dtOff'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -781,23 +779,16 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     log(`Volume ${$('volume').value}: ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
   });
   $('wakeBtn').addEventListener('click', async () => { sleeping = false; await power('wake'); setStatus('on', `Connected to ${device && device.name || 'car'}`); });
-  // Sleep = let go: stop driving and disconnect. Tested: about a minute later he switches himself off
-  // (no "power nap" line) and stays findable in Bluetooth. While connected he never dozes off, even after
-  // the sleep command, and version 10's targeted sleep commands put him into a sleep only the charger ends.
+  // Sleep: soft sleep to target 0x11, then disconnect. Verified 2026-11-16: he says "I feel a power nap coming on",
+  // closes his eyes, and stays visible to Bluetooth, so Connect car (which sends wake to 0x11) wakes him.
+  // Sleep with no target answers OK but does nothing; sleep to 0x11 and 0x12 together (version 10) is the deep sleep.
   $('sleepBtn').addEventListener('click', async () => {
-    stopAll(); sleeping = true; stopScan(); stopAnimScan();
-    await new Promise((r) => setTimeout(r, 200));
-    log('Sleep: disconnecting; he switches himself off in about a minute');
-    if (device && device.gatt.connected) device.gatt.disconnect();
-    setStatus('off', 'Disconnected. He sleeps in about a minute; replug the charger to wake him.');
-  });
-  $('sleep11Btn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
     sleeping = true; stopScan(); stopAnimScan();
     const r = await request(cmds.sleep(0x11));
-    log(`Sleep test (target 0x11): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
-    setStatus('busy', 'Sleep sent to 0x11. Disconnecting in 3 s. Wake: double-tap his roof, or the charger.');
-    setTimeout(() => { if (device && device.gatt.connected) { log('Disconnecting after sleep test'); device.gatt.disconnect(); } }, 3000);
+    log(`Sleep (target 0x11): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+    setStatus('busy', 'Power nap… Tap Connect car to wake him.');
+    setTimeout(() => { if (device && device.gatt.connected) device.gatt.disconnect(); setStatus('off', 'Asleep. Tap Connect car to wake him.'); }, 3000);
   });
   $('sleepNowBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
