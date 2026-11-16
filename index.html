@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v34</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v35</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -178,6 +178,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div class="row" id="found"></div>
       </div>
       <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button><button id="powerOptBtn" disabled>Power options</button></div>
+      <div class="row"><span style="font-size:14px;color:var(--muted)">Double-tap to wake (<span id="dtState">?</span>)</span><button id="dtOn" disabled>On</button><button id="dtOff" disabled>Off</button></div>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Changes a setting stored in the car. Off puts it back the way it was (00 00 00 00). Test: turn it on, tap Sleep, wait until he's asleep, then double-tap his roof.</p>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
       <label class="opt">Volume <input type="range" id="volume" min="0" max="255" value="200"> <span id="volumeV" class="readout">200</span></label>
       <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Saved sounds (tap to play)</div><div class="row" id="saved"></div><div class="row" style="margin-top:8px"><button id="clearSaved">Clear saved</button><button id="resetSaved">Keep only known sounds</button></div><div class="row" style="margin-top:8px"><button class="copyList">Copy list</button></div></div>
@@ -256,6 +258,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     // Read-only: power options (pysphero get_power_options 0x13). spherov2 lists the bits
     // 0x01 sleep while charging, 0x02 double-tap to wake.
     powerOptions: () => packet({ flags: F_RESP, device: 0x13, cmd: 0x13 }),
+    // Set power options (pysphero set_power_options 0x12): same 4-byte layout the car reports for get.
+    setPowerOptions: (v) => packet({ flags: F_RESP, device: 0x13, cmd: 0x12, payload: [(v >>> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff] }),
     sleep: (target) => packet({ flags: F_RESP, target: target || undefined, device: 0x13, cmd: 0x01 }),
     // Same flags the official app uses for driving: keep-alive only, no reply requested.
     driveRc: (steer, speed) => packet({ flags: F_KEEPALIVE, device: 0x16, cmd: 0x02, payload: [...f32(steer), ...f32(speed)] }),
@@ -273,7 +277,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 34;
+  const VERSION = 35;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -339,7 +343,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn', 'dtOn', 'dtOff'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -421,12 +425,23 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
   // ---- Power options (read only) ----
   async function readPowerOptions() {
-    if (!connected) return;
+    if (!connected) return null;
     const r = await request(cmds.powerOptions());
-    if (!r) return log('Power options: no reply');
-    if (r.err) return log(`Power options: ${ERRS[r.err] || 'code ' + r.err}`);
+    if (!r) { log('Power options: no reply'); return null; }
+    if (r.err) { log(`Power options: ${ERRS[r.err] || 'code ' + r.err}`); return null; }
     const v = r.data.reduce((a, b) => (a << 8) | b, 0) >>> 0;
     log(`Power options: data ${hex(r.data)} (sleep while charging: ${v & 1 ? 'on' : 'off'}, double-tap to wake: ${v & 2 ? 'on' : 'off'})`);
+    $('dtState').textContent = v & 2 ? 'on' : 'off';
+    return v;
+  }
+  // Double-tap to wake: read the options, change only bit 0x02, write them back, then read again to confirm.
+  async function setDoubleTap(on) {
+    const cur = await readPowerOptions();
+    if (cur == null) return log('Double-tap to wake: could not read the current options, so nothing was changed');
+    const want = on ? (cur | 2) : (cur & ~2);
+    const r = await request(cmds.setPowerOptions(want >>> 0));
+    log(`Double-tap to wake ${on ? 'on' : 'off'} (set options to ${(want >>> 0).toString(16).padStart(8, '0')}): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+    await readPowerOptions();
   }
 
   // ---- Battery ----
@@ -455,6 +470,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   }
   $('battBtn').addEventListener('click', () => readBattery(true));
   $('powerOptBtn').addEventListener('click', () => readPowerOptions());
+  $('dtOn').addEventListener('click', () => setDoubleTap(true));
+  $('dtOff').addEventListener('click', () => setDoubleTap(false));
 
   function cleanup() {
     clearInterval(battTimer); battTimer = null; $('battery').textContent = '';
