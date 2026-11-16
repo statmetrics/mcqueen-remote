@@ -13,7 +13,7 @@ This project replaces the app with a single web page that drives the car directl
 - **Code:** everything is in `index.html`, with no build step. GitHub Pages serves it from the `main` branch, at the repository root.
 - **The car:** Bluetooth name `LM-C644`. Any McQueen's name starts with `LM-`.
 
-## Status (version 12, 2026-11-10)
+## Status (version 32, 2026-11-16)
 
 | Feature | Status |
 |---|---|
@@ -21,7 +21,7 @@ This project replaces the app with a single web page that drives the car directl
 | Drive and steer (touch pads, portrait and landscape) | Works on the real car |
 | Headlights | Work on their own: the car turns them on when driving forward |
 | Taillights, eye screen | Work on their own |
-| Sounds | Partly working. Known sound IDs: 256, 2560, 4096, 4352, 4864, 6144, 7168 |
+| Sounds | Plain sounds (`0x1a 0x07`) play voice only, without moves, and some (like 4096) stopped playing. Use the Voice lines panel instead. Old sound IDs: 256, 2560, 4096, 4352, 4864, 6144, 7168 |
 | Automatic sound finder | Doesn't work on this car: it answers OK to every ID |
 | Wake on connect | Works (wake is sent on every connect) |
 | Driving while charging | He won't drive while on the charger (by design); unplug him to drive |
@@ -32,23 +32,23 @@ This project replaces the app with a single web page that drives the car directl
 | Copy list | Version 25: a Copy list button (in Experiments and Animations) copies every saved sound and animation as "N = " lines for the owner to name and paste back. Next: build the named ones into the page as a soundboard |
 | Voice lines and mouth | Sounds are his voice lines. 4096 = "Ka-chow!" with mouth, right tire lift and body tilt (worked on the charger; later silent off the charger though it answered OK). 256 = voice only, no movement. Theory: the 80 ms "speed 0" drive stream blocks the move and he skips the line, so version 27 pauses the stream for 5 s after each sound or animation. That didn't help (4096 still silent off the charger, 256 fine), so version 28 sends drive packets only while a pad is held, plus 5 stops after release. That didn't help either. Since the v25 session (after a sleep and charger wake around 8:10 pm, 2026-11-12) he also stopped his usual engine rumble on connect, on or off the charger, while voice-only 256 still plays. His state changed, cause unknown. Version 29 added a Full restart button (version 10's deep sleep). On 2026-11-12 it put him into deep sleep and he did not wake on the charger right away (no headlight pulsing); left on the charger. He later woke when version 30 connected, and **the engine rumble on connect was back**, so the deep sleep did reset his state. Version 30 removed the button. **Never send sleep to targets 0x11/0x12.** After the reset, 4096 was still silent on and off the charger (256 fine). Ka-chow only ever worked while the page streamed drive updates continuously (versions 23–24), so version 31 makes that the default again; the version 27–28 quiet behaviour is a Settings checkbox, "Quiet when parked". Version 24 adds Step 256 to the sound Scan to find more |
 | Voice lines soundboard | Version 32: a "Voice lines" panel with 47 named buttons from pysphero's McQueen animation list (Ka-chow = `0x69`, engine rev/start/idle = `0x130`/`0x131`/`0x132`), sent as animatronics play on **target 0x12**. **Works on the car** (2026-11-13). Other lines not individually checked yet |
-| Mouth movement / animations | Animation 0 slowed his idle movement and 1 stopped it (eyes froze). Nothing else visible yet in 0–67. Version 15 adds Idle moves On/Off (`0x17 0x2c [0/1]`), Stop (`0x17 0x2b`), and logs messages the car sends by itself, including "animation finished" (`0x17 0x11`) |
+| Mouth movement / animations | Solved by the Voice lines panel (animations on target `0x12`). History: with no target, animation 0 slowed his idle moves and 1 froze him; 2304–2816 on `0x12` (not real IDs) probably caused a quiet mode that only a deep sleep cleared |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
-### Where we stopped
+### Where we stopped (2026-11-13)
 
-On the last test, version 10's Sleep put the car to sleep, but it then didn't show up in the Bluetooth device list. Shaking it didn't wake it. The owner plugged it in to charge overnight. Charging woke it once before, on the first night.
+- **Voice lines work.** Version 32's "Voice lines" panel plays McQueen's real lines with mouth and body moves, using pysphero's animation IDs on target `0x12`. Ka-chow was confirmed on the car. The other 46 buttons haven't been checked one by one.
+- **Sleep isn't reliable.** After Disconnect he sometimes sleeps within a minute (and then only the charger wakes him) and sometimes stays awake. Leaving him awake on the charger is harmless.
+- The owner wants a line "along the lines of lightning bolt and getting a jolt", which isn't in pysphero's list. He also said "Did you know race cars don't have trunks? True story" by himself on the charger.
 
 ## Next steps, in order
 
-**Version 11–12 changes:** Sleep now sends only the no-target sleep and stays connected (steps 2 below is done in code, waiting on a real-car test). The Animations section (step 3) is built; next is scanning IDs on the car and saving the ones that move the mouth or play voice lines.
-
-1. ~~**Confirm the car wakes on the charger.**~~ Done (2026-11-11): plugging him in woke him from version 10's deep sleep.
-2. **Make Sleep gentler.** Version 10 sends sleep (power device `0x13`, command `0x01`) three times: with no target, to target `0x11`, and to target `0x12`. Then it disconnects after 3 seconds. In version 9, the no-target form alone returned OK. On one occasion the car said its "power nap" line and slept, but it stayed awake when the page kept the connection open. Suggested fix: send only the no-target sleep, pause the drive stream (already done), and either stay connected or disconnect. Test whether the car stays visible to Bluetooth afterwards. If it still disappears, label the button clearly, for example "Sleep (wake with charger or a shake)".
-3. **Mouth and animations.** The car has a motorized mouth. A reference video of the original app shows it moving while the car talks. Add an "Animations" test section that sends the animatronics command (device `0x17`, command `0x05`, payload `[0x00, id]`, as R2-D2 and BB-9E use) and steps through IDs, the way the sound Scan does. Find the IDs that move the mouth or play voice lines, and save them.
-4. **Lights test (optional).** Try the user I/O "all LEDs" command (device `0x1a`, command `0x0e`, payload `[mask_hi, mask_lo, values…]`) one bit at a time, to see if headlights or taillights can be set directly.
-5. **Tilt to steer (optional).**
-6. **Clean-up (optional).** Remove or hide the automatic sound finder, since it can't tell real sounds from silent ones on this car.
+1. **Check the voice lines.** Tap each button in the Voice lines panel. Remove any that do nothing, and rename the `*` ones (translated from the French app) to his real English words.
+2. **Find more lines, including the lightning-bolt one.** Easiest: leave him connected with the log open. Every line he says by himself is reported (`0x17 0x11` with its ID) and auto-saved. Otherwise scan Animations on target `0x12`, Step 1, from 2 to about 320, every 5 s (skip 0 and 1, which freeze him). Use Copy list to send the numbers back, then add them to `VOICE_LINES`.
+3. **A reliable sleep.** Search existing work first (pysphero, Red Thunder Remote) for a power-nap or sleep animation or command. Don't send sleep to targets `0x11`/`0x12`.
+4. **Tidy the page (optional).** Now that voice lines work, the old sound experiments (sound Scan, automatic finder, 256-step sounds, Idle moves `0x2c` buttons, Full restart notes) could be hidden or removed.
+5. **Lights (optional).** Try the user I/O "all LEDs" command (device `0x1a`, command `0x0e`) one bit at a time. Search for existing McQueen work on it first.
+6. **Tilt to steer (optional).**
 
 ## Protocol reference
 
@@ -82,7 +82,7 @@ All of this was verified on the real car unless marked otherwise.
 | Volume | `0x1a` | `0x08` | 0–255 | untested |
 | Stop animation | `0x17` | `0x2b` | none | from spherov2 (Python) |
 | Idle animations | `0x17` | `0x2c` | `[0 or 1]` | from spherov2 (Python). No target: car replies "unknown command" (first rejection seen). Also "unknown command" on targets 0x11 and 0x12: McQueen doesn't have it |
-| Animation | `0x17` | `0x05` | `[0x00, id]` | from other Sphero toys; version 12 has a test section for it |
+| Animation | `0x17` | `0x05` | 16-bit ID, big-endian | **target `0x12`** for McQueen (pysphero). Voice lines with moves, e.g. Ka-chow `0x69`. Verified |
 
 **Mistakes already fixed**
 - Version 1–2 ran inside a claude.ai artifact. Claude's frame blocks the Web Bluetooth device-picker result, so the page never connected. **Always use the GitHub Pages copy.**
@@ -90,13 +90,16 @@ All of this was verified on the real car unless marked otherwise.
 - Version 1–2 put the sound number in the high byte, so "sound 1" was really 256 (fixed in version 3).
 - The spherov2.js library's speed encoding (`n * 3968`) is only right at 0 and ±1. The page uses real float32 instead.
 
-## Page features (version 10)
+## Page features (version 32)
 - Steer pad (horizontal) and Gas pad (vertical; up is forward). Letting go stops the car. A big Stop button. Keyboard on a computer: arrow keys or WASD, space to stop.
 - Landscape layout: steer under the left thumb, gas under the right, Stop in the middle.
-- Settings, saved on the phone: Top speed (default 40%), Steering sensitivity (default 160%), Steering amount (up to 150%; values over 100% are experimental), Flip steering, Flip gas, Show all Bluetooth devices.
-- Buttons: Connect car, Disconnect, Wake, Sleep.
-- Experiments: Sound # with Play, Prev, Next, Save, Hush and Scan (0.8, 1.5 or 3 s); Volume; saved sounds; the automatic finder (doesn't work on this car).
-- Connection log, and a version label next to the title.
+- Status line with battery level (percent, volts, charging state), refreshed every minute.
+- Buttons: Connect car, Disconnect, Wake, Sleep (charger wakes). The screen is kept on while connected.
+- **Voice lines:** 47 named buttons and a Stop.
+- Settings, saved on the phone: Top speed, Steering sensitivity, Steering amount, Flip steering, Flip gas, Quiet when parked (test), Show all Bluetooth devices.
+- Experiments: sound Play, Prev, Next, Save, Hush, Scan (Step 1 or 256); Volume; Sleep now (command); Battery; saved sounds; Copy list; the automatic finder (doesn't work on this car).
+- Animations: Play, Prev, Next, Save, Stop, Idle moves On/Off (unknown command on McQueen), Send to (default `0x12`), Step, Scan; IDs the car reports are auto-saved; Copy list.
+- Connection log, including messages the car sends by itself, and a version label next to the title.
 
 ## How to work on it
 0. **Before guessing or scanning for a new feature, search for existing McQueen work first** (pysphero, Red Thunder Remote, forums). Scanning blind caused a freeze (animation 1), a quiet mode, and a deep sleep, while pysphero already had the Ka-chow ID.
@@ -117,7 +120,12 @@ pysphero (https://github.com/EnotYoyo/pysphero, `device_api/animatronics.py`; a 
 ## Sources
 - spherov2.js (TypeScript), which has a Lightning McQueen class: https://github.com/igbopie/spherov2.js. This is where the Bluetooth details, the unlock string and the drive command came from.
 - spherov2 (Python), for the sound command layout (16-bit ID plus mode) and the power commands: https://pypi.org/project/spherov2/. It has no McQueen support.
+- pysphero (Python, MIT), for McQueen's animation IDs and animatronics commands: https://github.com/EnotYoyo/pysphero. Copy in `docs/reference/pysphero/`.
+
+
+
+> Continue my McQueen Remote project. Repo: statmetrics/mcqueen-remote (public, GitHub Pages at https://statmetrics.github.io/mcqueen-remote/). Read HANDOFF.md first. It's a single-page Web Bluetooth remote for a Sphero Ultimate Lightning McQueen, used from the Bluefy browser on iPhone. Next up: make the Sleep button gentler so the car stays findable, then add an Animations test section to find the commands that move his mouth.
 
 ## Starting prompt for a new Claude session
 
-> Continue my McQueen Remote project. Repo: statmetrics/mcqueen-remote (public, GitHub Pages at https://statmetrics.github.io/mcqueen-remote/). Read HANDOFF.md first. It's a single-page Web Bluetooth remote for a Sphero Ultimate Lightning McQueen, used from the Bluefy browser on iPhone. Next up: make the Sleep button gentler so the car stays findable, then add an Animations test section to find the commands that move his mouth.
+> Continue my McQueen Remote project. Repo: statmetrics/mcqueen-remote (public, GitHub Pages at https://statmetrics.github.io/mcqueen-remote/). Read HANDOFF.md first. It's a single-page Web Bluetooth remote for a Sphero Ultimate Lightning McQueen, used from the Bluefy browser on iPhone. Next up: check the Voice lines buttons, find more of his lines (including one about a lightning bolt and a jolt), and find a reliable way to put him to sleep.
