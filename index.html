@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v39</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v40</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -277,7 +277,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 39;
+  const VERSION = 40;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -305,12 +305,13 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
       const mine = id != null && id === lastAnim;
       log(`Car: animation ${id != null ? id : '?'} finished${mine ? ' (the one we sent)' : ' (his own idle move)'}`);
       if (id != null && typeof markFinished === 'function') markFinished(id, mine);
-    } else if (device === 0x13 && POWER_NOTES[cmd]) log(`Car: ${POWER_NOTES[cmd]}${data.length ? ' (data ' + hex(data) + ')' : ''}`);
+    } else if (device === 0x11 && cmd === 0x30) log('Car: ready (sent with the awake message)');
+    else if (device === 0x13 && POWER_NOTES[cmd]) log(`Car: ${POWER_NOTES[cmd]}${data.length ? ' (data ' + hex(data) + ')' : ''}`);
     else log(`Car says: device ${h2(device)} command ${h2(cmd)}${data.length ? ' data ' + hex(data) : ''}`);
   }
   let lastAnim = null, markFinished = null;
   // Power messages the car sends by itself (pysphero / spherov2 names).
-  const POWER_NOTES = { 0x06: 'battery state changed', 0x19: 'about to go to sleep', 0x1a: 'going to sleep now', 0x1c: 'battery voltage state changed', 0x21: 'charger state changed' };
+  const POWER_NOTES = { 0x11: 'awake (sent about 4 s after every connect)', 0x06: 'battery state changed', 0x19: 'about to go to sleep', 0x1a: 'going to sleep now', 0x1c: 'battery voltage state changed', 0x21: 'charger state changed' };
   function request(pkt, ms = 800) {
     return new Promise((resolve) => {
       const t = setTimeout(() => { waiting.delete(pkt.seq); resolve(null); }, ms);

@@ -117,6 +117,7 @@ pysphero (https://github.com/EnotYoyo/pysphero, `device_api/animatronics.py`; a 
 - `LMQAnimation` IDs (voice line plus mouth and body moves), e.g. Ka-chow `0x69`, I am speed `0x5e`, Engine rev `0x130`, Engine start `0x131`, Engine idle loop `0x132`. The full list is in `index.html` (`VOICE_LINES`). Names ending in `*` were captured from the French app.
 - McQueen animatronics commands: `0x01` animate eyes, `0x03` animate suspension, `0x04` animate mouth, `0x05` execute animation, `0x07` capacitive touch indication, `0x0a` enable idle animation, `0x0b` enable user drive, `0x12` animate steering, `0x2b` stop animation. Payloads for 0x01/0x03/0x04/0x0a/0x0b are unknown. Note that idle animation on McQueen is `0x0a`, not `0x2c`.
 - Power: battery state `0x04`, battery state changed notification `0x06`.
+- Seen on the car: about 4 s after every connect he sends `0x13 0x11` (no data) and `0x11 0x30` (data `00`). Version 40 logs them as "awake" and "ready" (names are our guess).
 
 ## Sources
 - spherov2.js (TypeScript), which has a Lightning McQueen class: https://github.com/igbopie/spherov2.js. This is where the Bluetooth details, the unlock string and the drive command came from.
