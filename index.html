@@ -109,7 +109,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
 
 <div class="wrap">
   <header>
-    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v35</small></h1>
+    <h1>McQueen <span>Remote</span> <span class="num">95</span> <small id="ver" style="font-family:var(--mono);font-size:11px;font-style:normal;color:var(--muted);letter-spacing:0">v36</small></h1>
     <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">Not connected</span> <span id="battery" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></span></div>
   </header>
 
@@ -178,6 +178,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
         <div class="row" id="found"></div>
       </div>
       <div class="row"><button id="sleepNowBtn" disabled>Sleep now (command)</button><button id="battBtn" disabled>Battery</button><button id="powerOptBtn" disabled>Power options</button></div>
+      <div class="row"><button id="sleep11Btn" disabled>Sleep test (target 0x11)</button></div>
+      <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends soft sleep to target 0x11 only (wake only works on 0x11), then disconnects. May be the deep sleep: wake with a double-tap on his roof, or the charger.</p>
       <div class="row"><span style="font-size:14px;color:var(--muted)">Double-tap to wake (<span id="dtState">?</span>)</span><button id="dtOn" disabled>On</button><button id="dtOff" disabled>Off</button></div>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Changes a setting stored in the car. Off puts it back the way it was (00 00 00 00). Test: turn it on, tap Sleep, wait until he's asleep, then double-tap his roof.</p>
       <p style="margin:-6px 0 0;font-size:13px;color:var(--muted)">Sends the sleep command. Tested: he answers OK but stays awake while connected. Use Sleep (top), which disconnects so he switches himself off.</p>
@@ -277,7 +279,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
   window.__mcq = { packet, f32, cmds, resetSeq: (s) => { seq = s; } };
 
   // ---- Replies from the car (bytes may arrive one per notification) ----
-  const VERSION = 35;
+  const VERSION = 36;
   let rx = null, rxEsc = false;
   const waiting = new Map(); // seq -> resolve
   function onByte(b) {
@@ -343,7 +345,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     }
     return false;
   }
-  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn', 'dtOn', 'dtOff'];
+  const CTRL_IDS = ['wakeBtn', 'findBtn', 'disconnect', 'playSound', 'nextSound', 'prevSound', 'saveSound', 'stopSound', 'scanBtn', 'sleepBtn', 'playAnim', 'prevAnim', 'nextAnim', 'saveAnim', 'animScanBtn', 'sleepNowBtn', 'stopAnim', 'idleOn', 'idleOff', 'battBtn', 'powerOptBtn', 'dtOn', 'dtOff', 'sleep11Btn'];
   let device = null, chApi = null, chDfu = null, busy = false, driveTimer = null, sent = 0, connected = false;
 
   async function write(ch, data) {
@@ -788,6 +790,14 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--red); }
     log('Sleep: disconnecting; he switches himself off in about a minute');
     if (device && device.gatt.connected) device.gatt.disconnect();
     setStatus('off', 'Disconnected. He sleeps in about a minute; replug the charger to wake him.');
+  });
+  $('sleep11Btn').addEventListener('click', async () => {
+    stopAll(); await new Promise((r) => setTimeout(r, 200));
+    sleeping = true; stopScan(); stopAnimScan();
+    const r = await request(cmds.sleep(0x11));
+    log(`Sleep test (target 0x11): ${r ? (ERRS[r.err] || 'code ' + r.err) : 'no reply'}`);
+    setStatus('busy', 'Sleep sent to 0x11. Disconnecting in 3 s. Wake: double-tap his roof, or the charger.');
+    setTimeout(() => { if (device && device.gatt.connected) { log('Disconnecting after sleep test'); device.gatt.disconnect(); } }, 3000);
   });
   $('sleepNowBtn').addEventListener('click', async () => {
     stopAll(); await new Promise((r) => setTimeout(r, 200));
