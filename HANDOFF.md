@@ -36,10 +36,11 @@ This project replaces the app with a single web page that drives the car directl
 | Mouth movement / animations | Solved by the Voice lines panel (animations on target `0x12`). History: with no target, animation 0 slowed his idle moves and 1 froze him; 2304–2816 on `0x12` (not real IDs) probably caused a quiet mode that only a deep sleep cleared |
 | Lights control (headlights on/off while parked) | Not started; the owner said "not yet" |
 
-### Where we stopped (2026-11-13)
+### Where we stopped (2026-11-16)
 
 - **Voice lines work.** Version 32's "Voice lines" panel plays McQueen's real lines with mouth and body moves, using pysphero's animation IDs on target `0x12`. Ka-chow was confirmed on the car. The other 46 buttons haven't been checked one by one.
-- **Sleep isn't reliable.** After Disconnect he sometimes sleeps within a minute (and then only the charger wakes him) and sometimes stays awake. Leaving him awake on the charger is harmless.
+- **Sleep works (version 37+).** Sleep sends soft sleep to target `0x11`: he says "I feel a power nap coming on" and sleeps. Connect car within about 15 s wakes him; after about 2 min only the charger does.
+- **Repo visibility.** The repo must stay **public** for free GitHub Pages (making it private gave a 404). Before it went public, the owner's 3 web commits were rewritten to GitHub's noreply address so no personal email is in the history.
 - The owner wants a line "along the lines of lightning bolt and getting a jolt", which isn't in pysphero's list. He also said "Did you know race cars don't have trunks? True story" by himself on the charger.
 
 ## Next steps, in order
